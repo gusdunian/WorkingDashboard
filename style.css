@@ -292,6 +292,7 @@ body { margin: 0; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe 
 .action-format-filter-row { margin-top: 0.25rem; }
 
 .action-format-filter-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; min-width: 0; flex-wrap: nowrap; }
+.notes-format-filter-row { margin-top: 0.25rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; min-width: 0; flex-wrap: nowrap; }
 .toolbar-filter-group { display: inline-flex; align-items: center; justify-content: flex-end; gap: 0.45rem; margin-left: auto; flex-wrap: wrap; }
 .inline-filter-control { display: inline-flex; align-items: center; gap: 0.28rem; }
 .filter-icon-label { display: inline-flex; align-items: center; justify-content: center; width: 1.25rem; height: 1.25rem; color: #64748b; }
