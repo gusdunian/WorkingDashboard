@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Angus’ Working Dashboard</title>
     <link rel="stylesheet" href="style.css" />
   </head>
@@ -10,7 +10,16 @@
     <a class="skip-link" href="#main-content">Skip to main content</a>
     <header class="banner" role="banner">
       <div class="banner-heading">
-        <h1 id="dashboard-title">Angus’ Working Dashboard</h1>
+        <h1 class="dashboard-title-wrap">
+          <svg class="dashboard-title-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <rect x="4" y="3" width="16" height="18" rx="2" />
+            <path d="M8 8.5l1.5 1.5L12 7.5" />
+            <path d="M14.5 9h3" />
+            <path d="M8 14.5l1.5 1.5L12 13.5" />
+            <path d="M14.5 15h3" />
+          </svg>
+          <span id="dashboard-title">Angus’ Working Dashboard</span>
+        </h1>
         <p id="dashboard-date" class="banner-date" aria-label="Today&#39;s date"></p>
       </div>
       <section class="cloud-panel" aria-label="Cloud sync controls">
@@ -40,7 +49,7 @@
     <main id="main-content" class="container" aria-live="polite">
       <p id="signed-out-message" class="signed-out-message" hidden>Sign in to view your dashboard.</p>
       <section class="columns" aria-label="Action columns">
-        <div class="column-stack">
+        <div class="column-stack general-column">
           <article class="column card collapsible-card" data-card-id="generalActions" aria-labelledby="general-actions-heading">
           <div class="column-header">
             <h2 id="general-actions-heading">
@@ -63,15 +72,44 @@
                     <div class="action-input-buttons">
                       <button type="submit" aria-label="Add action">+</button>
                       <button id="general-clear-completed-btn" type="button" class="subtle-button">CC</button>
+                      <button id="general-create-urgency-btn" type="button" class="icon-btn urgent-btn" aria-label="Set new action priority">!</button>
+                      <button id="general-create-timing-btn" type="button" class="icon-btn time-dependent-btn" aria-label="Set new action timing flag">T</button>
                     </div>
                   </div>
-                  <div class="rtf-toolbar" data-editor-target="general-action-input" role="toolbar" aria-label="General action formatting">
-                    <button type="button" data-command="bold" aria-label="Bold">B</button>
-                    <button type="button" data-command="italic" aria-label="Italic">I</button>
-                    <button type="button" data-command="underline" aria-label="Underline">U</button>
-                    <button type="button" data-command="insertUnorderedList" aria-label="Bulleted list">•</button>
-                    <button type="button" data-command="insertOrderedList" aria-label="Numbered list">1.</button>
+                  <div class="action-format-filter-row">
+                    <div class="rtf-toolbar" data-editor-target="general-action-input" role="toolbar" aria-label="General action formatting">
+                      <button type="button" data-command="bold" aria-label="Bold">B</button>
+                      <button type="button" data-command="italic" aria-label="Italic">I</button>
+                      <button type="button" data-command="underline" aria-label="Underline">U</button>
+                      <button type="button" data-command="insertUnorderedList" aria-label="Bulleted list">•</button>
+                      <button type="button" data-command="insertOrderedList" aria-label="Numbered list">1.</button>
+                    </div>
+                    <div class="toolbar-filter-group">
+                      <div class="inline-filter-control">
+                        <label for="general-tag-filter" class="filter-icon-label" aria-label="Tag filter">
+                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M20 13 11 4H4v7l9 9z" />
+                            <circle cx="7.5" cy="7.5" r="1" />
+                          </svg>
+                        </label>
+                        <select id="general-tag-filter" class="person-filter-select">
+                          <option value="All">All</option>
+                        </select>
+                      </div>
+                      <div class="inline-filter-control">
+                        <label for="general-person-filter" class="filter-icon-label" aria-label="Person filter">
+                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <circle cx="12" cy="8" r="3.5" />
+                            <path d="M5 20c.8-3.4 3.8-5.5 7-5.5s6.2 2.1 7 5.5" />
+                          </svg>
+                        </label>
+                        <select id="general-person-filter" class="person-filter-select">
+                          <option value="All">All</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
+                  <span id="general-person-filter-count" class="person-filter-count" aria-live="polite"></span>
                 </form>
               </div>
               <ul id="general-action-list" class="action-list" aria-label="General action items"></ul>
@@ -114,7 +152,7 @@
           </article>
         </div>
 
-        <div class="column-stack">
+        <div class="column-stack planning-column">
           <article class="column card collapsible-card" data-card-id="bigTicket" aria-labelledby="big-ticket-heading">
             <div class="column-header">
               <h2 id="big-ticket-heading">
@@ -171,15 +209,44 @@
                     <div class="action-input-buttons">
                       <button type="submit" aria-label="Add action">+</button>
                       <button id="scheduling-clear-completed-btn" type="button" class="subtle-button">CC</button>
+                      <button id="scheduling-create-urgency-btn" type="button" class="icon-btn urgent-btn" aria-label="Set new scheduling action priority">!</button>
+                      <button id="scheduling-create-timing-btn" type="button" class="icon-btn time-dependent-btn" aria-label="Set new scheduling action timing flag">T</button>
                     </div>
                   </div>
-                  <div class="rtf-toolbar" data-editor-target="scheduling-action-input" role="toolbar" aria-label="Scheduling action formatting">
-                    <button type="button" data-command="bold" aria-label="Bold">B</button>
-                    <button type="button" data-command="italic" aria-label="Italic">I</button>
-                    <button type="button" data-command="underline" aria-label="Underline">U</button>
-                    <button type="button" data-command="insertUnorderedList" aria-label="Bulleted list">•</button>
-                    <button type="button" data-command="insertOrderedList" aria-label="Numbered list">1.</button>
+                  <div class="action-format-filter-row">
+                    <div class="rtf-toolbar" data-editor-target="scheduling-action-input" role="toolbar" aria-label="Scheduling action formatting">
+                      <button type="button" data-command="bold" aria-label="Bold">B</button>
+                      <button type="button" data-command="italic" aria-label="Italic">I</button>
+                      <button type="button" data-command="underline" aria-label="Underline">U</button>
+                      <button type="button" data-command="insertUnorderedList" aria-label="Bulleted list">•</button>
+                      <button type="button" data-command="insertOrderedList" aria-label="Numbered list">1.</button>
+                    </div>
+                    <div class="toolbar-filter-group">
+                      <div class="inline-filter-control">
+                        <label for="scheduling-tag-filter" class="filter-icon-label" aria-label="Tag filter">
+                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M20 13 11 4H4v7l9 9z" />
+                            <circle cx="7.5" cy="7.5" r="1" />
+                          </svg>
+                        </label>
+                        <select id="scheduling-tag-filter" class="person-filter-select">
+                          <option value="All">All</option>
+                        </select>
+                      </div>
+                      <div class="inline-filter-control">
+                        <label for="scheduling-person-filter" class="filter-icon-label" aria-label="Person filter">
+                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <circle cx="12" cy="8" r="3.5" />
+                            <path d="M5 20c.8-3.4 3.8-5.5 7-5.5s6.2 2.1 7 5.5" />
+                          </svg>
+                        </label>
+                        <select id="scheduling-person-filter" class="person-filter-select">
+                          <option value="All">All</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
+                  <span id="scheduling-person-filter-count" class="person-filter-count" aria-live="polite"></span>
                 </form>
               </div>
               <ul id="scheduling-action-list" class="action-list" aria-label="Scheduling action items"></ul>
@@ -187,7 +254,7 @@
           </article>
         </div>
 
-        <div class="column-stack">
+        <div class="column-stack notes-column">
           <article class="column card collapsible-card" data-card-id="meetingNotes" aria-labelledby="meeting-heading">
             <div class="column-header">
               <h2 id="meeting-heading">
@@ -228,12 +295,38 @@
 
                   <label class="visually-hidden" for="meeting-notes-editor">Meeting notes</label>
                   <div id="meeting-notes-editor" class="meeting-notes-editor" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="Add notes"></div>
-                  <div class="rtf-toolbar" data-editor-target="meeting-notes-editor" role="toolbar" aria-label="Meeting notes formatting">
-                    <button type="button" data-command="bold" aria-label="Bold">B</button>
-                    <button type="button" data-command="italic" aria-label="Italic">I</button>
-                    <button type="button" data-command="underline" aria-label="Underline">U</button>
-                    <button type="button" data-command="insertUnorderedList" aria-label="Bulleted list">•</button>
-                    <button type="button" data-command="insertOrderedList" aria-label="Numbered list">1.</button>
+                  <div class="notes-format-filter-row">
+                    <div class="rtf-toolbar" data-editor-target="meeting-notes-editor" role="toolbar" aria-label="Meeting notes formatting">
+                      <button type="button" data-command="bold" aria-label="Bold">B</button>
+                      <button type="button" data-command="italic" aria-label="Italic">I</button>
+                      <button type="button" data-command="underline" aria-label="Underline">U</button>
+                      <button type="button" data-command="insertUnorderedList" aria-label="Bulleted list">•</button>
+                      <button type="button" data-command="insertOrderedList" aria-label="Numbered list">1.</button>
+                    </div>
+                    <div class="toolbar-filter-group">
+                      <div class="inline-filter-control">
+                        <label for="meeting-tag-filter" class="filter-icon-label" aria-label="Tag filter">
+                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M20 13 11 4H4v7l9 9z" />
+                            <circle cx="7.5" cy="7.5" r="1" />
+                          </svg>
+                        </label>
+                        <select id="meeting-tag-filter" class="person-filter-select">
+                          <option value="All">All</option>
+                        </select>
+                      </div>
+                      <div class="inline-filter-control">
+                        <label for="meeting-person-filter" class="filter-icon-label" aria-label="Person filter">
+                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <circle cx="12" cy="8" r="3.2" />
+                            <path d="M5.5 19c.8-3 3.4-5 6.5-5s5.7 2 6.5 5" />
+                          </svg>
+                        </label>
+                        <select id="meeting-person-filter" class="person-filter-select">
+                          <option value="All">All</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
                   <button type="submit" aria-label="Add meeting">+</button>
                 </form>
@@ -265,12 +358,38 @@
                     <button type="submit" aria-label="Add general note">+</button>
                   </div>
                   <div id="general-note-editor" class="meeting-notes-editor" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="Add a general note"></div>
-                  <div class="rtf-toolbar" data-editor-target="general-note-editor" role="toolbar" aria-label="General notes formatting">
-                    <button type="button" data-command="bold" aria-label="Bold">B</button>
-                    <button type="button" data-command="italic" aria-label="Italic">I</button>
-                    <button type="button" data-command="underline" aria-label="Underline">U</button>
-                    <button type="button" data-command="insertUnorderedList" aria-label="Bulleted list">•</button>
-                    <button type="button" data-command="insertOrderedList" aria-label="Numbered list">1.</button>
+                  <div class="notes-format-filter-row">
+                    <div class="rtf-toolbar" data-editor-target="general-note-editor" role="toolbar" aria-label="General notes formatting">
+                      <button type="button" data-command="bold" aria-label="Bold">B</button>
+                      <button type="button" data-command="italic" aria-label="Italic">I</button>
+                      <button type="button" data-command="underline" aria-label="Underline">U</button>
+                      <button type="button" data-command="insertUnorderedList" aria-label="Bulleted list">•</button>
+                      <button type="button" data-command="insertOrderedList" aria-label="Numbered list">1.</button>
+                    </div>
+                    <div class="toolbar-filter-group">
+                      <div class="inline-filter-control">
+                        <label for="general-notes-tag-filter" class="filter-icon-label" aria-label="Tag filter">
+                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M20 13 11 4H4v7l9 9z" />
+                            <circle cx="7.5" cy="7.5" r="1" />
+                          </svg>
+                        </label>
+                        <select id="general-notes-tag-filter" class="person-filter-select">
+                          <option value="All">All</option>
+                        </select>
+                      </div>
+                      <div class="inline-filter-control">
+                        <label for="general-notes-person-filter" class="filter-icon-label" aria-label="Person filter">
+                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <circle cx="12" cy="8" r="3.2" />
+                            <path d="M5.5 19c.8-3 3.4-5 6.5-5s5.7 2 6.5 5" />
+                          </svg>
+                        </label>
+                        <select id="general-notes-person-filter" class="person-filter-select">
+                          <option value="All">All</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
                 </form>
               </div>
@@ -307,6 +426,8 @@
           <div id="modal-text-input" class="modal-editor" contenteditable="true" role="textbox" aria-multiline="true"></div>
         </div>
         <div class="modal-footer">
+          <button id="modal-dictate-btn" type="button" class="subtle-button">Dictate</button>
+          <button id="modal-cancel-btn" type="button" class="subtle-button">Cancel</button>
           <button id="modal-save-btn" type="button" class="subtle-button">Save</button>
         </div>
       </div>
@@ -349,6 +470,7 @@
           </div>
 
           <div class="modal-footer">
+            <button id="meeting-big-edit-dictate" type="button" class="subtle-button">Dictate</button>
             <button id="meeting-big-edit-cancel" type="button" class="subtle-button">Cancel</button>
             <button type="submit" class="subtle-button">Save</button>
           </div>
@@ -396,6 +518,7 @@
             <button type="button" data-command="insertOrderedList" aria-label="Numbered list">1.</button>
           </div>
           <div class="modal-footer">
+            <button id="general-note-big-edit-dictate" type="button" class="subtle-button">Dictate</button>
             <button id="general-note-big-edit-cancel" type="button" class="subtle-button">Cancel</button>
             <button type="submit" class="subtle-button">Save</button>
           </div>
