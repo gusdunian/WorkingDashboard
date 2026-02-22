@@ -351,7 +351,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, [contentedita
 
 .meeting-toolbar { padding: 0.8rem 1rem 0.65rem; }
 .meeting-add-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.45rem; margin: 0; }
-.meeting-add-form input, .meeting-add-form select { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 0.45rem 0.6rem; font: inherit; font-size: 0.88rem; line-height: 1.3; }
+.meeting-add-form input, .meeting-add-form select:not(.person-filter-select) { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 0.45rem 0.6rem; font: inherit; font-size: 0.88rem; line-height: 1.3; }
 .meeting-date-time-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.45rem; grid-column: 1; }
 .meeting-notes-editor { border: 1px solid var(--border); border-radius: 8px; min-height: 5.3rem; padding: 0.45rem 0.6rem; font-size: 0.88rem; line-height: 1.3; }
 .meeting-notes-editor:empty::before { content: attr(data-placeholder); color: #94a3b8; }
@@ -390,12 +390,16 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, [contentedita
 .meeting-items .meeting-item:first-child { border-top: 0; }
 .meeting-summary { width: 100%; border: 0; border-radius: 0; background: transparent; color: #0f172a; text-align: left; padding: 0; font-size: 0.84rem; line-height: 1.35; }
 .meeting-summary:hover, .meeting-summary:focus-visible { background: transparent; color: #1e40af; }
+.meeting-row { display: flex; align-items: center; gap: 0.35rem; }
+.meeting-row > .meeting-summary, .meeting-row > .general-note-summary { flex: 1; min-width: 0; }
+.row-quick-edit-btn { border: 0; background: transparent; color: #64748b; border-radius: 4px; padding: 0.1rem 0.28rem; font-size: 0.82rem; line-height: 1; flex: 0 0 auto; }
+.row-quick-edit-btn:hover, .row-quick-edit-btn:focus-visible { background: #e2e8f0; color: #0f172a; }
 .meeting-details { margin-top: 0.4rem; margin-right: 0.25rem; padding: 0.5rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; max-height: 260px; overflow: auto; }
 .meeting-detail-title { margin: 0 0 0.35rem; font-size: 0.88rem; }
 .meeting-notes-rendered { font-size: 0.83rem; }
 .meeting-notes-rendered p { margin: 0 0 0.4rem; }
 .meeting-notes-rendered ul, .meeting-notes-rendered ol { margin: 0; padding-left: 1.1rem; }
-.meeting-detail-controls { margin-top: 0.5rem; display: inline-flex; gap: 0.4rem; }
+.meeting-detail-controls { margin: 0.1rem 0 0.5rem; display: inline-flex; gap: 0.4rem; }
 .meeting-link-btn { border: 0; background: transparent; color: #475569; font-size: 0.78rem; padding: 0; text-decoration: underline; text-underline-offset: 2px; }
 .meeting-link-btn:hover, .meeting-link-btn:focus-visible { background: transparent; color: #0f172a; }
 .meeting-link-btn.delete { color: #b91c1c; }

@@ -1939,7 +1939,7 @@
     bigEditBtn.addEventListener('click', () => openMeetingBigEdit(item.id));
 
     controls.append(editBtn, bigEditBtn, deleteBtn);
-    detail.append(title, notesWrap, controls);
+    detail.append(title, controls, notesWrap);
     return detail;
   }
 
@@ -2019,6 +2019,9 @@
           const li = document.createElement('li');
           li.className = 'meeting-item';
           const date = new Date(item.datetime);
+          const row = document.createElement('div');
+          row.className = 'meeting-row';
+
           const summary = document.createElement('button');
           summary.type = 'button';
           summary.className = 'meeting-summary';
@@ -2028,7 +2031,20 @@
             meeting.editingId = null;
             renderMeetings();
           });
-          li.appendChild(summary);
+
+          const quickEditBtn = document.createElement('button');
+          quickEditBtn.type = 'button';
+          quickEditBtn.className = 'row-quick-edit-btn';
+          quickEditBtn.title = 'Big edit';
+          quickEditBtn.setAttribute('aria-label', `Big edit ${item.title}`);
+          quickEditBtn.textContent = '✎';
+          quickEditBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            openMeetingBigEdit(item.id);
+          });
+
+          row.append(summary, quickEditBtn);
+          li.appendChild(row);
           if (meeting.expandedId === item.id) li.appendChild(renderMeetingExpanded(item));
           meetingsEl.appendChild(li);
         });
@@ -2289,6 +2305,9 @@
       group.items.forEach((note) => {
         const li = document.createElement('li');
         li.className = 'general-note-item';
+        const row = document.createElement('div');
+        row.className = 'meeting-row';
+
         const summary = document.createElement('button');
         summary.type = 'button';
         summary.className = 'general-note-summary';
@@ -2299,7 +2318,20 @@
           generalNotes.editingId = null;
           renderGeneralNotes();
         });
-        li.appendChild(summary);
+
+        const quickEditBtn = document.createElement('button');
+        quickEditBtn.type = 'button';
+        quickEditBtn.className = 'row-quick-edit-btn';
+        quickEditBtn.title = 'Big edit';
+        quickEditBtn.setAttribute('aria-label', `Big edit ${note.title}`);
+        quickEditBtn.textContent = '✎';
+        quickEditBtn.addEventListener('click', (event) => {
+          event.stopPropagation();
+          openGeneralNoteBigEdit(note.id);
+        });
+
+        row.append(summary, quickEditBtn);
+        li.appendChild(row);
 
         if (generalNotes.expandedId === note.id) {
           const detail = document.createElement('div');
@@ -2330,7 +2362,7 @@
             const big = document.createElement('button'); big.type='button'; big.className='meeting-link-btn'; big.textContent='Big edit'; big.addEventListener('click',()=>openGeneralNoteBigEdit(note.id));
             const del = document.createElement('button'); del.type='button'; del.className='meeting-link-btn delete'; del.textContent='Delete'; del.addEventListener('click',()=>{generalNotes.items=generalNotes.items.filter((n)=>n.id!==note.id); if(generalNotes.expandedId===note.id)generalNotes.expandedId=null; saveGeneralNotes(); renderGeneralNotes();});
             controls.append(edit,big,del);
-            detail.append(notes,controls);
+            detail.append(controls,notes);
           }
           li.appendChild(detail);
         }
