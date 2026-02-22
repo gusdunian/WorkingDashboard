@@ -33,6 +33,9 @@ body { margin: 0; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe 
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.8rem;
+  position: sticky;
+  top: 0;
+  z-index: 30;
 }
 
 .banner h1 {
@@ -254,8 +257,11 @@ body { margin: 0; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe 
   display: none;
 }
 .container { width: 100%; margin: 1rem 0; padding: 0 1.25rem 2rem; }
-.columns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; align-items: start; width: 100%; }
-.column-stack { display: grid; gap: 1rem; align-content: start; }
+.columns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; align-items: start; width: 100%; grid-template-areas: "general planning notes"; }
+.column-stack { display: grid; gap: 1rem; align-content: start; min-width: 0; }
+.general-column { grid-area: general; }
+.planning-column { grid-area: planning; }
+.notes-column { grid-area: notes; }
 .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 0; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06); overflow: hidden; }
 .column { display: flex; flex-direction: column; background: #ffffff; color: #111827; min-height: 0; }
 .column-header { width: 100%; padding: 0.65rem 0.8rem 0.65rem 1rem; background: var(--card-header-bg); color: var(--card-header-fg); display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; }
@@ -305,7 +311,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, [contentedita
 .subtle-button:hover, .subtle-button:focus-visible { color: #fff; background: #334155; }
 
 .action-list { list-style: none; padding: 0 1rem 1rem; margin: 0; }
-.action-item { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: center; gap: 0.5rem; padding: 0.3rem 0; border-bottom: 1px solid #edf1f5; cursor: pointer; transition: background-color 0.7s ease, box-shadow 0.7s ease; }
+.action-item { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: center; gap: 0.5rem; padding: 0.35rem 0; border-bottom: 1px solid #edf1f5; cursor: pointer; transition: background-color 0.7s ease, box-shadow 0.7s ease; min-width: 0; }
 .action-item:last-child { border-bottom: 0; }
 .action-item.pri-normal, .big-ticket-row.pri-normal { background: #ffffff; }
 .action-item.pri-urgent, .big-ticket-row.pri-urgent { border-left: 3px solid var(--urgent-border); padding-left: 0.4rem; background: var(--urgent-bg); }
@@ -329,7 +335,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, [contentedita
 .action-text * { white-space: nowrap; }
 .action-text-toggle { border: 0; background: transparent; color: #64748b; padding: 0; font-size: 0.82rem; line-height: 1; min-width: 0.75rem; align-self: center; }
 .action-text-toggle:hover, .action-text-toggle:focus-visible { background: transparent; color: #0f172a; }
-.action-controls { display: inline-flex; align-items: center; justify-self: end; gap: 0.3rem; }
+.action-controls { display: inline-flex; align-items: center; justify-self: end; gap: 0.3rem; min-width: 0; flex-wrap: nowrap; }
 .time-dependent-btn.active { border-color: #f59e0b; background: #fde68a; color: #111827; }
 .icon-btn { border: 1px solid var(--border); background: #fff; color: #475569; border-radius: 6px; padding: 0.2rem 0.35rem; font-size: 0.7rem; min-width: 1.45rem; height: 1.45rem; }
 .icon-btn:hover, .icon-btn:focus-visible { background: #f1f5f9; color: #0f172a; }
@@ -432,12 +438,16 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, [contentedita
 .general-note-month-row { display: flex; align-items: center; gap: 0.35rem; }
 .general-note-items { margin-left: 1rem; }
 
-@media (max-width: 920px) {
-  .columns { grid-template-columns: 1fr; }
-  .container { padding: 0 1rem 1.6rem; }
-  .big-edit-dialog { width: calc(100vw - 1rem); min-width: 0; height: 88vh; max-height: 90vh; resize: none; }
-}
+@media (max-width: 1099px) {
+  .columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "general planning"
+      "notes notes";
+  }
 
+  .container { padding: 0 1rem 1.6rem; }
+}
 
 @media (max-width: 760px) {
   .action-format-filter-row {
@@ -455,10 +465,20 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, [contentedita
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 699px) {
   .banner {
     flex-direction: column;
     align-items: stretch;
+    gap: 0.55rem;
+    padding: 0.65rem 0.75rem;
+  }
+
+  .banner h1 {
+    font-size: clamp(1.05rem, 5.3vw, 1.35rem);
+  }
+
+  .banner-date {
+    font-size: 0.78rem;
   }
 
   .cloud-panel {
@@ -469,13 +489,129 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, [contentedita
     justify-content: flex-start;
   }
 
+  .cloud-controls,
+  .cloud-status-row {
+    gap: 0.35rem;
+  }
+
   .cloud-status-row {
     align-items: stretch;
     flex-wrap: wrap;
   }
 
-  .cloud-panel input {
-    width: min(100%, 15rem);
+  .cloud-panel input,
+  .cloud-btn,
+  button,
+  .meeting-add-form input,
+  .meeting-add-form select,
+  .meeting-edit-form input,
+  .meeting-edit-form select,
+  .meeting-big-edit-form input,
+  .meeting-big-edit-form select,
+  .person-filter-select,
+  .settings-row select,
+  .settings-row input[type='text'],
+  .settings-row input[type='file'] {
+    min-height: 2.5rem;
+  }
+
+  .person-filter-select {
+    font-size: 0.85rem;
+    max-width: none;
+    min-width: 6rem;
+  }
+
+  .columns {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "general"
+      "planning"
+      "notes";
+  }
+
+  .planning-column,
+  .notes-column {
+    gap: 0.75rem;
+  }
+
+  .planning-column {
+    grid-template-areas:
+      "big"
+      "schedule";
+  }
+
+  .meeting-toolbar,
+  .action-toolbar,
+  .action-list,
+  .meeting-list {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .action-item,
+  .big-ticket-row,
+  .general-note-item,
+  .meeting-items .meeting-item {
+    padding-top: 0.48rem;
+    padding-bottom: 0.48rem;
+  }
+
+  .action-item {
+    grid-template-columns: auto auto minmax(0, 1fr);
+    grid-template-areas:
+      "check number text"
+      "controls controls controls";
+    row-gap: 0.35rem;
+  }
+
+  .action-item > input[type='checkbox'] { grid-area: check; }
+  .action-item > .action-number { grid-area: number; }
+  .action-item > .action-text-wrap { grid-area: text; }
+
+  .action-controls {
+    grid-area: controls;
+    justify-self: start;
+    flex-wrap: wrap;
+  }
+
+  .modal-dialog {
+    width: min(100vw, 98vw);
+    max-width: 100vw;
+    height: min(96vh, 100vh);
+    max-height: 100vh;
+    border-radius: 6px;
+    padding: 0.75rem;
+  }
+
+  .big-edit-dialog {
+    width: min(100vw, 99vw);
+    min-width: 0;
+    height: min(96vh, 100vh);
+    max-height: 100vh;
+    resize: none;
+    border-radius: 6px;
+  }
+
+  .meeting-big-edit-form,
+  #general-note-big-edit-form {
+    min-height: 0;
+    flex: 1;
+  }
+
+  .meeting-big-edit-form .modal-editor,
+  #general-note-big-edit-editor,
+  #meeting-big-edit-notes-editor,
+  #big-ticket-modal-editor,
+  #modal-text-input {
+    min-height: 0;
+    flex: 1;
+    max-height: none;
+    overflow: auto;
+  }
+
+  .modal-footer {
+    justify-content: flex-end;
+    margin-top: auto;
   }
 
   .toast-container {

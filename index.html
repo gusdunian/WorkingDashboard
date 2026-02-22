@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Angus’ Working Dashboard</title>
     <link rel="stylesheet" href="style.css" />
   </head>
@@ -49,7 +49,7 @@
     <main id="main-content" class="container" aria-live="polite">
       <p id="signed-out-message" class="signed-out-message" hidden>Sign in to view your dashboard.</p>
       <section class="columns" aria-label="Action columns">
-        <div class="column-stack">
+        <div class="column-stack general-column">
           <article class="column card collapsible-card" data-card-id="generalActions" aria-labelledby="general-actions-heading">
           <div class="column-header">
             <h2 id="general-actions-heading">
@@ -152,7 +152,7 @@
           </article>
         </div>
 
-        <div class="column-stack">
+        <div class="column-stack planning-column">
           <article class="column card collapsible-card" data-card-id="bigTicket" aria-labelledby="big-ticket-heading">
             <div class="column-header">
               <h2 id="big-ticket-heading">
@@ -254,7 +254,7 @@
           </article>
         </div>
 
-        <div class="column-stack">
+        <div class="column-stack notes-column">
           <article class="column card collapsible-card" data-card-id="meetingNotes" aria-labelledby="meeting-heading">
             <div class="column-header">
               <h2 id="meeting-heading">
