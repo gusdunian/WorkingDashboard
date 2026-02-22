@@ -418,21 +418,70 @@
     return Math.abs(hash);
   }
 
+  const PRIVACY_LOREM_LINES = [
+    'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+    'Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.',
+    'Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.',
+    'Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
+    'Curabitur pretium tincidunt lacus, nulla gravida orci a odio, semper porta lacus vehicula sed.',
+  ];
+
+  const PRIVACY_LOREM_BODIES = [
+    [
+      'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
+      'Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+      'Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.',
+    ],
+    [
+      'Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.',
+      'Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
+      'Integer posuere erat a ante venenatis dapibus posuere velit aliquet.',
+      'Praesent commodo cursus magna, vel scelerisque nisl consectetur et.',
+    ],
+    [
+      'Morbi leo risus, porta ac consectetur ac, vestibulum at eros.',
+      'Aenean lacinia bibendum nulla sed consectetur.',
+      'Maecenas sed diam eget risus varius blandit sit amet non magna.',
+      'Nulla vitae elit libero, a pharetra augue.',
+      'Donec sed odio dui, id elit non mi porta gravida at eget metus.',
+    ],
+  ];
+
+  function getPrivacyText(seed, kind = 'line') {
+    const seedHash = hashCode(seed || kind);
+    if (kind === 'modal') {
+      const body = PRIVACY_LOREM_BODIES[seedHash % PRIVACY_LOREM_BODIES.length];
+      const sentenceCount = 2 + (seedHash % Math.min(5, body.length - 1));
+      return body.slice(0, sentenceCount).join(' ');
+    }
+    const line = PRIVACY_LOREM_LINES[seedHash % PRIVACY_LOREM_LINES.length];
+    const minLength = 40;
+    const targetLength = minLength + (seedHash % 41);
+    const maxLength = Math.min(targetLength, line.length);
+    const clipped = line.slice(0, maxLength).trim();
+    const suffix = clipped.length < line.length ? '…' : '';
+    return `${clipped}${suffix}`;
+  }
+
+  function renderText(realText, seed, kind = 'line') {
+    if (!privacyMode) return realText;
+    return getPrivacyText(seed, kind);
+  }
+
   function anonymizeText(value, kind = 'Item', id = '') {
-    const base = (hashCode(id || value) % 997) + 1;
-    return `${kind} ${base}`;
+    return renderText(value, `${kind}:${id || value}`, 'line');
   }
 
   function anonymizeInlineHtml(value, kind = 'Item', id = '') {
-    return escapeHtml(anonymizeText(value, kind, id));
+    return escapeHtml(renderText(value, `${kind}:${id || value}`, 'line'));
   }
 
   function anonymizeRichHtml(value, kind = 'Note', id = '') {
-    return `<p>${escapeHtml(anonymizeText(value, kind, id))}</p>`;
+    return `<p>${escapeHtml(renderText(value, `${kind}:${id || value}`, 'modal'))}</p>`;
   }
 
   function renderEmailForPrivacy(email) {
-    if (privacyMode) return 'user';
+    if (privacyMode) return 'Signed in';
     return email || '—';
   }
 
