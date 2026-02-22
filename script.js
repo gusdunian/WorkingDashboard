@@ -405,6 +405,7 @@
     undoStack: [],
     drawing: false,
     start: null,
+    baseSnapshot: null,
   };
 
   function canMutateData() {
@@ -1759,7 +1760,7 @@
       if (list.showDates) {
         const prefix = document.createElement('span');
         prefix.className = 'action-date-prefix';
-        prefix.innerHTML = `(${buildPrefix(action)})`;
+        prefix.innerHTML = buildPrefix(action);
         textWrap.appendChild(prefix);
       }
 
@@ -2242,13 +2243,6 @@
       const number = document.createElement('span');
       number.className = 'action-number';
       number.textContent = `${index + 1}.`;
-      if (item.timingFlag === 'T' || item.timingFlag === 'D') {
-        const timingPill = document.createElement('span');
-        timingPill.className = 'timing-pill';
-        timingPill.textContent = item.timingFlag;
-        timingPill.classList.add(item.timingFlag === 'T' ? 'timing-pill-t' : 'timing-pill-d');
-        number.append(' ', timingPill);
-      }
 
       const summary = document.createElement('button');
       summary.type = 'button';
@@ -2732,8 +2726,8 @@
     if (generalNoteWhiteboardPanel) generalNoteWhiteboardPanel.hidden = nextMode !== 'whiteboard';
     if (nextMode === 'whiteboard') {
       resizeWhiteboardCanvas();
-      renderWhiteboardPrivacyOverlay();
     }
+    renderWhiteboardPrivacyOverlay();
     if (generalNoteWhiteboardPanel) {
       generalNoteWhiteboardPanel.classList.toggle('privacy-locked', privacyMode && nextMode === 'whiteboard');
     }
@@ -2805,7 +2799,7 @@
   function drawShapePreview(start, end) {
     const ctx = getWhiteboardCtx();
     if (!ctx) return;
-    const snapshot = whiteboardState.undoStack[whiteboardState.undoStack.length - 1];
+    const snapshot = whiteboardState.baseSnapshot;
     if (!snapshot) return;
     const img = new Image();
     img.onload = () => {
@@ -3960,11 +3954,33 @@
   if (whiteboardCanvas) {
     const onPointerDown = (event) => {
       if (privacyMode) return;
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
+      const point = whiteboardPoint(event);
+      if (whiteboardState.tool === 'text') {
+        const text = window.prompt('Enter text');
+        if (!text) return;
+        pushWhiteboardUndo();
+        const ctx = getWhiteboardCtx();
+        if (!ctx) return;
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = whiteboardColorInput?.value || '#1f2937';
+        ctx.font = '16px sans-serif';
+        ctx.textBaseline = 'top';
+        ctx.fillText(text, point.x, point.y);
+        ctx.restore();
+        whiteboardState.touched = true;
+        whiteboardState.hasContent = true;
+        return;
+      }
       whiteboardCanvas.setPointerCapture(event.pointerId);
+      event.preventDefault();
       pushWhiteboardUndo();
+      whiteboardState.baseSnapshot = whiteboardCanvas.toDataURL('image/png');
       whiteboardState.drawing = true;
-      whiteboardState.start = whiteboardPoint(event);
+      whiteboardState.start = point;
       const ctx = getWhiteboardCtx();
+      if (!ctx) return;
       if (whiteboardState.tool === 'pen' || whiteboardState.tool === 'eraser') {
         ctx.beginPath();
         ctx.moveTo(whiteboardState.start.x, whiteboardState.start.y);
@@ -3974,6 +3990,7 @@
       if (!whiteboardState.drawing) return;
       const point = whiteboardPoint(event);
       const ctx = getWhiteboardCtx();
+      if (!ctx) return;
       if (whiteboardState.tool === 'pen' || whiteboardState.tool === 'eraser') {
         ctx.lineWidth = Number(whiteboardWidthInput?.value || 3);
         ctx.lineCap = 'round';
@@ -3982,6 +3999,7 @@
         ctx.strokeStyle = whiteboardColorInput?.value || '#1f2937';
         ctx.lineTo(point.x, point.y);
         ctx.stroke();
+        ctx.globalCompositeOperation = 'source-over';
       } else {
         drawShapePreview(whiteboardState.start, point);
       }
@@ -3991,7 +4009,11 @@
       if (whiteboardState.tool === 'line' || whiteboardState.tool === 'rect' || whiteboardState.tool === 'circle') {
         drawShape(whiteboardState.start, whiteboardPoint(event));
       }
+      if (whiteboardCanvas.hasPointerCapture(event.pointerId)) {
+        whiteboardCanvas.releasePointerCapture(event.pointerId);
+      }
       whiteboardState.drawing = false;
+      whiteboardState.baseSnapshot = null;
       whiteboardState.touched = true;
       whiteboardState.hasContent = true;
       renderWhiteboardPrivacyOverlay();
