@@ -198,7 +198,6 @@
   const generalNoteBigEditEditor = document.getElementById('general-note-big-edit-editor');
   const generalNoteBigEditDictateBtn = document.getElementById('general-note-big-edit-dictate');
   const privacyToggleBtn = document.getElementById('privacy-toggle-btn');
-  const privacyPill = document.getElementById('privacy-pill');
   const generalNoteTabText = document.getElementById('general-note-tab-text');
   const generalNoteTabWhiteboard = document.getElementById('general-note-tab-whiteboard');
   const generalNoteTextPanel = document.getElementById('general-note-text-panel');
@@ -2446,7 +2445,15 @@
           openGeneralNoteBigEdit(note.id);
         });
 
-        row.append(summary, quickEditBtn);
+        if (note.whiteboardDataUrl) {
+          const whiteboardIndicator = document.createElement('span');
+          whiteboardIndicator.className = 'general-note-whiteboard-indicator';
+          whiteboardIndicator.setAttribute('aria-hidden', 'true');
+          whiteboardIndicator.textContent = '🖊';
+          row.append(summary, whiteboardIndicator, quickEditBtn);
+        } else {
+          row.append(summary, quickEditBtn);
+        }
         li.appendChild(row);
 
         if (generalNotes.expandedId === note.id) {
@@ -2727,6 +2734,9 @@
       resizeWhiteboardCanvas();
       renderWhiteboardPrivacyOverlay();
     }
+    if (generalNoteWhiteboardPanel) {
+      generalNoteWhiteboardPanel.classList.toggle('privacy-locked', privacyMode && nextMode === 'whiteboard');
+    }
   }
 
   function getWhiteboardCtx() {
@@ -2832,19 +2842,26 @@
 
   function renderWhiteboardPrivacyOverlay() {
     if (!whiteboardPrivacyPlaceholder || !whiteboardCanvas) return;
-    const hidden = !(privacyMode && whiteboardState.hasContent);
-    whiteboardPrivacyPlaceholder.hidden = hidden;
-    whiteboardCanvas.classList.toggle('canvas-hidden', !hidden);
+    const isWhiteboardMode = whiteboardState.mode === 'whiteboard';
+    const shouldHideCanvas = privacyMode && isWhiteboardMode;
+    whiteboardPrivacyPlaceholder.hidden = !shouldHideCanvas;
+    whiteboardCanvas.classList.toggle('canvas-hidden', shouldHideCanvas);
+    if (whiteboardCanvas) {
+      whiteboardCanvas.style.pointerEvents = shouldHideCanvas ? 'none' : 'auto';
+    }
+    if (generalNoteWhiteboardPanel) {
+      generalNoteWhiteboardPanel.classList.toggle('privacy-locked', shouldHideCanvas);
+    }
   }
 
   function setPrivacyMode(next) {
     privacyMode = Boolean(next);
     localStorage.setItem(PRIVACY_MODE_KEY, privacyMode ? '1' : '0');
     if (privacyToggleBtn) {
-      privacyToggleBtn.textContent = `Privacy: ${privacyMode ? 'On' : 'Off'}`;
+      privacyToggleBtn.textContent = privacyMode ? 'Privacy On' : 'Privacy';
+      privacyToggleBtn.classList.toggle('is-on', privacyMode);
       privacyToggleBtn.setAttribute('aria-pressed', String(privacyMode));
     }
-    if (privacyPill) privacyPill.hidden = !privacyMode;
     renderWhiteboardPrivacyOverlay();
     updateCloudMeta();
     renderAll();
@@ -3912,7 +3929,9 @@
   if (generalNoteTabWhiteboard) generalNoteTabWhiteboard.addEventListener('click', () => setGeneralNoteEditMode('whiteboard'));
 
   document.querySelectorAll('.whiteboard-tool-btn[data-whiteboard-tool]').forEach((btn) => {
+    if ((btn.dataset.whiteboardTool || 'pen') === whiteboardState.tool) btn.classList.add('active');
     btn.addEventListener('click', () => {
+      if (privacyMode) return;
       whiteboardState.tool = btn.dataset.whiteboardTool || 'pen';
       document.querySelectorAll('.whiteboard-tool-btn[data-whiteboard-tool]').forEach((n) => n.classList.toggle('active', n === btn));
     });
@@ -3920,7 +3939,7 @@
 
   if (whiteboardUndoBtn) {
     whiteboardUndoBtn.addEventListener('click', () => {
-      if (!whiteboardCanvas || !whiteboardState.undoStack.length) return;
+      if (privacyMode || !whiteboardCanvas || !whiteboardState.undoStack.length) return;
       const previous = whiteboardState.undoStack.pop();
       loadWhiteboardImage(previous || null);
       whiteboardState.touched = true;
@@ -3929,6 +3948,7 @@
 
   if (whiteboardClearBtn) {
     whiteboardClearBtn.addEventListener('click', () => {
+      if (privacyMode) return;
       pushWhiteboardUndo();
       fillWhiteboardBackground();
       whiteboardState.hasContent = false;

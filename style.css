@@ -69,6 +69,18 @@ body { margin: 0; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe 
   gap: 0.45rem;
 }
 
+.privacy-toggle-btn[aria-pressed='true'] {
+  background: #1e293b;
+  border-color: #0f172a;
+  color: #f8fafc;
+}
+
+.privacy-toggle-btn[aria-pressed='true']:hover,
+.privacy-toggle-btn[aria-pressed='true']:focus-visible {
+  background: #0f172a;
+  color: #ffffff;
+}
+
 .cloud-controls {
   width: 100%;
   display: flex;
@@ -392,6 +404,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, [contentedita
 .meeting-summary:hover, .meeting-summary:focus-visible { background: transparent; color: #1e40af; }
 .meeting-row { display: flex; align-items: center; gap: 0.35rem; }
 .meeting-row > .meeting-summary, .meeting-row > .general-note-summary { flex: 1; min-width: 0; }
+.general-note-whiteboard-indicator { color: #475569; font-size: 0.78rem; line-height: 1; flex: 0 0 auto; opacity: 0.9; }
 .row-quick-edit-btn { border: 0; background: transparent; color: #64748b; border-radius: 4px; padding: 0.1rem 0.28rem; font-size: 0.82rem; line-height: 1; flex: 0 0 auto; }
 .row-quick-edit-btn:hover, .row-quick-edit-btn:focus-visible { background: #e2e8f0; color: #0f172a; }
 .meeting-details { margin-top: 0.4rem; margin-right: 0.25rem; padding: 0.5rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; max-height: 260px; overflow: auto; }
@@ -416,7 +429,10 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, [contentedita
 .big-edit-dialog { width: min(88vw, 1150px); min-width: min(88vw, 680px); height: min(82vh, 900px); max-height: 85vh; resize: both; overflow: auto; }
 .big-edit-dialog { display: flex; flex-direction: column; gap: 0.55rem; }
 .meeting-big-edit-form { display: flex; flex-direction: column; gap: 0.45rem; min-height: 0; flex: 1; }
-.meeting-big-edit-form .modal-editor { min-height: 0; flex: 1; max-height: none; overflow: auto; }
+.big-edit-dialog .meeting-big-edit-form { min-height: 0; }
+.big-edit-dialog .general-note-edit-panel { min-height: 0; display: flex; flex-direction: column; gap: 0.45rem; flex: 1; }
+.meeting-big-edit-form .modal-editor,
+.big-edit-dialog .general-note-edit-panel .modal-editor { min-height: 0; flex: 1; max-height: none; overflow: auto; }
 .meeting-big-edit-form .rtf-toolbar { align-self: flex-start; }
 .modal-close { position: absolute; top: 0.5rem; right: 0.5rem; border: 0; border-radius: 4px; background: transparent; color: var(--muted); font-size: 1.1rem; padding: 0.1rem 0.35rem; }
 .modal-close:hover, .modal-close:focus-visible { background: #e2e8f0; color: #0f172a; }
@@ -424,7 +440,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, [contentedita
 .modal-toolbar { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 .modal-urgency-label { font-size: 0.78rem; color: #334155; font-weight: 600; }
 .modal-shortcuts { font-size: 0.72rem; color: #64748b; margin-left: auto; }
-.modal-body { max-height: 70vh; overflow: auto; }
+.modal-body { max-height: 70vh; overflow: auto; min-height: 0; }
 .modal-editor { width: 100%; min-height: 9rem; max-height: 58vh; overflow: auto; border: 1px solid var(--border); border-radius: 8px; padding: 0.55rem 0.65rem; font: inherit; line-height: 1.35; }
 .modal-footer { display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: nowrap; }
 
@@ -628,18 +644,6 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, [contentedita
   }
 }
 
-.privacy-pill {
-  display: inline-flex;
-  align-items: center;
-  border: 1px solid #cbd5e1;
-  border-radius: 999px;
-  padding: 0.2rem 0.55rem;
-  font-size: 0.78rem;
-  font-weight: 700;
-  background: #fff7ed;
-  color: #9a3412;
-}
-
 .general-note-edit-tabs {
   display: inline-flex;
   gap: 0.35rem;
@@ -648,23 +652,64 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, [contentedita
 
 .edit-tab,
 .whiteboard-tool-btn {
-  border: 1px solid #cbd5e1;
-  background: #fff;
+  border: 1px solid #94a3b8;
+  background: #f8fafc;
+  color: #0f172a;
   border-radius: 6px;
   padding: 0.35rem 0.55rem;
   font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.edit-tab:hover,
+.edit-tab:focus-visible,
+.whiteboard-tool-btn:hover,
+.whiteboard-tool-btn:focus-visible {
+  background: #e2e8f0;
+  border-color: #64748b;
+  color: #0f172a;
 }
 
 .edit-tab.active,
 .whiteboard-tool-btn.active {
-  background: #dbeafe;
-  border-color: #93c5fd;
+  background: #1d4ed8;
+  border-color: #1e40af;
+  color: #ffffff;
 }
 
 .general-note-edit-panel[hidden] { display: none; }
-.whiteboard-layout { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 0.6rem; min-height: 320px; }
+.whiteboard-layout { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 0.6rem; min-height: 320px; flex: 1; min-width: 0; }
 .whiteboard-toolbar { display: grid; gap: 0.35rem; align-content: start; }
 .whiteboard-canvas-wrap { position: relative; min-height: 320px; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; background: #fff; }
 #general-note-whiteboard-canvas { width: 100%; height: 100%; min-height: 320px; touch-action: none; display: block; }
 #general-note-whiteboard-canvas.canvas-hidden { filter: blur(8px); }
 .whiteboard-privacy-placeholder { position: absolute; inset: 0; display: grid; place-items: center; font-weight: 700; color: #334155; background: rgba(248,250,252,0.86); }
+
+#general-note-whiteboard-panel.privacy-locked .whiteboard-toolbar { opacity: 0.55; }
+#general-note-whiteboard-panel.privacy-locked .whiteboard-toolbar button,
+#general-note-whiteboard-panel.privacy-locked .whiteboard-toolbar input { pointer-events: none; }
+
+@media (prefers-color-scheme: dark) {
+  .edit-tab,
+  .whiteboard-tool-btn {
+    background: #1f2937;
+    border-color: #475569;
+    color: #e2e8f0;
+  }
+
+  .edit-tab:hover,
+  .edit-tab:focus-visible,
+  .whiteboard-tool-btn:hover,
+  .whiteboard-tool-btn:focus-visible {
+    background: #334155;
+    border-color: #64748b;
+    color: #f8fafc;
+  }
+
+  .edit-tab.active,
+  .whiteboard-tool-btn.active {
+    background: #3b82f6;
+    border-color: #60a5fa;
+    color: #0f172a;
+  }
+}
