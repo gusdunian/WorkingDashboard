@@ -145,6 +145,7 @@
 
   const THEME_PRESET_NAMES = [...Object.keys(THEMES), 'Custom'];
   const movedActionHighlights = new Map();
+  const movedBigTicketHighlights = new Map();
 
   const collapsedCardsDefault = {
     generalActions: false,
@@ -1422,6 +1423,35 @@
     return true;
   }
 
+  function highlightBigTicketById(ticketId) {
+    const key = String(ticketId || '');
+    if (!key) return;
+    const existing = movedBigTicketHighlights.get(key);
+    if (existing?.timeoutId) clearTimeout(existing.timeoutId);
+    const timeoutId = window.setTimeout(() => {
+      movedBigTicketHighlights.delete(key);
+      const row = bigTicket.listEl.querySelector(`.big-ticket-row[data-id="${CSS.escape(key)}"]`);
+      if (row) row.classList.remove('move-highlight');
+    }, MOVE_HIGHLIGHT_MS);
+    movedBigTicketHighlights.set(key, { timeoutId, expiresAt: Date.now() + MOVE_HIGHLIGHT_MS });
+    requestAnimationFrame(() => {
+      const row = bigTicket.listEl.querySelector(`.big-ticket-row[data-id="${CSS.escape(key)}"]`);
+      if (row) row.classList.add('move-highlight');
+    });
+  }
+
+  function isBigTicketMoveHighlighted(ticketId) {
+    const key = String(ticketId || '');
+    if (!key) return false;
+    const entry = movedBigTicketHighlights.get(key);
+    if (!entry) return false;
+    if (entry.expiresAt <= Date.now()) {
+      movedBigTicketHighlights.delete(key);
+      return false;
+    }
+    return true;
+  }
+
   function getOrderedActions(list) {
     const visibleItems = list.actions.filter((i) => !i.archived);
     const active = visibleItems.filter((i) => !i.deleted && !i.completed);
@@ -2123,6 +2153,7 @@
     bigTicket.items.forEach((item, index) => {
       const row = document.createElement('li');
       row.className = 'big-ticket-row';
+      row.dataset.id = item.id;
       const priorityClass = item.urgencyLevel === 2
         ? 'pri-super'
         : item.urgencyLevel === 1
@@ -2131,6 +2162,7 @@
             ? 'pri-low'
             : 'pri-normal';
       row.classList.add(priorityClass);
+      if (isBigTicketMoveHighlighted(item.id)) row.classList.add('move-highlight');
 
       const number = document.createElement('span');
       number.className = 'action-number';
@@ -2195,6 +2227,7 @@
         item.updatedAt = Date.now();
         saveBigTicketItems();
         renderBigTicketItems();
+        highlightBigTicketById(item.id);
       });
 
       const downBtn = document.createElement('button');
@@ -2210,6 +2243,7 @@
         item.updatedAt = Date.now();
         saveBigTicketItems();
         renderBigTicketItems();
+        highlightBigTicketById(item.id);
       });
 
       const del = document.createElement('button');
