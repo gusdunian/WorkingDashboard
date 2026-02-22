@@ -528,6 +528,7 @@
           <div id="general-note-whiteboard-panel" class="general-note-edit-panel" role="tabpanel" hidden>
             <div class="whiteboard-layout">
               <div class="whiteboard-toolbar">
+                <button type="button" class="whiteboard-tool-btn" data-whiteboard-tool="select">Select</button>
                 <button type="button" class="whiteboard-tool-btn" data-whiteboard-tool="pen">Pen</button>
                 <button type="button" class="whiteboard-tool-btn" data-whiteboard-tool="eraser">Eraser</button>
                 <button type="button" class="whiteboard-tool-btn" data-whiteboard-tool="line">Line</button>
@@ -538,6 +539,12 @@
                 <input id="whiteboard-width" type="range" min="1" max="24" value="3" aria-label="Stroke width" />
                 <button id="whiteboard-undo-btn" type="button" class="whiteboard-tool-btn">Undo</button>
                 <button id="whiteboard-clear-btn" type="button" class="whiteboard-tool-btn">Clear</button>
+                <div id="whiteboard-image-actions" class="whiteboard-image-actions" hidden>
+                  <button id="whiteboard-image-delete-btn" type="button" class="whiteboard-tool-btn">Delete image</button>
+                  <button id="whiteboard-image-forward-btn" type="button" class="whiteboard-tool-btn">Bring forward</button>
+                  <button id="whiteboard-image-backward-btn" type="button" class="whiteboard-tool-btn">Send backward</button>
+                </div>
+                <p class="whiteboard-hint">Paste (Ctrl+V) or drop an image</p>
               </div>
               <div class="whiteboard-canvas-wrap">
                 <canvas id="general-note-whiteboard-canvas" aria-label="General note whiteboard"></canvas>
