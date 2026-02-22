@@ -207,7 +207,6 @@
   const whiteboardWidthInput = document.getElementById('whiteboard-width');
   const whiteboardUndoBtn = document.getElementById('whiteboard-undo-btn');
   const whiteboardClearBtn = document.getElementById('whiteboard-clear-btn');
-  const whiteboardPrivacyPlaceholder = document.getElementById('whiteboard-privacy-placeholder');
   const mainContainer = document.getElementById('main-content');
   const columnsSection = document.querySelector('.columns');
   const signedOutMessage = document.getElementById('signed-out-message');
@@ -2474,11 +2473,7 @@
             detail.appendChild(form);
           } else {
             const notes = document.createElement('div'); notes.className = 'meeting-notes-rendered';
-            if (privacyMode && note.whiteboardDataUrl) {
-              notes.innerHTML = '<p>(hidden in privacy mode)</p>';
-            } else {
-              notes.innerHTML = privacyMode ? anonymizeRichHtml(note.text, 'Note text', note.id) : note.html;
-            }
+            notes.innerHTML = privacyMode ? anonymizeRichHtml(note.text, 'Note text', note.id) : note.html;
             const controls = document.createElement('div'); controls.className = 'meeting-detail-controls';
             const edit = document.createElement('button'); edit.type='button'; edit.className='meeting-link-btn'; edit.textContent='Edit'; edit.addEventListener('click',()=>{ if (privacyMode) return; generalNotes.editingId=note.id; renderGeneralNotes();});
             const big = document.createElement('button'); big.type='button'; big.className='meeting-link-btn'; big.textContent='Big edit'; big.addEventListener('click',()=>openGeneralNoteBigEdit(note.id));
@@ -2664,7 +2659,6 @@
     whiteboardState.hasContent = Boolean(item.whiteboardDataUrl);
     resizeWhiteboardCanvas();
     loadWhiteboardImage(item.whiteboardDataUrl);
-    renderWhiteboardPrivacyOverlay();
   }
 
   function closeGeneralNoteBigEdit() {
@@ -2725,11 +2719,9 @@
     if (generalNoteTextPanel) generalNoteTextPanel.hidden = nextMode !== 'text';
     if (generalNoteWhiteboardPanel) generalNoteWhiteboardPanel.hidden = nextMode !== 'whiteboard';
     if (nextMode === 'whiteboard') {
+      const item = getGeneralNoteById(activeGeneralNoteBigEditId);
       resizeWhiteboardCanvas();
-    }
-    renderWhiteboardPrivacyOverlay();
-    if (generalNoteWhiteboardPanel) {
-      generalNoteWhiteboardPanel.classList.toggle('privacy-locked', privacyMode && nextMode === 'whiteboard');
+      loadWhiteboardImage(item?.whiteboardDataUrl || activeGeneralNoteBigEditDraft?.whiteboardDataUrl || null);
     }
   }
 
@@ -2834,19 +2826,7 @@
     }
   }
 
-  function renderWhiteboardPrivacyOverlay() {
-    if (!whiteboardPrivacyPlaceholder || !whiteboardCanvas) return;
-    const isWhiteboardMode = whiteboardState.mode === 'whiteboard';
-    const shouldHideCanvas = privacyMode && isWhiteboardMode;
-    whiteboardPrivacyPlaceholder.hidden = !shouldHideCanvas;
-    whiteboardCanvas.classList.toggle('canvas-hidden', shouldHideCanvas);
-    if (whiteboardCanvas) {
-      whiteboardCanvas.style.pointerEvents = shouldHideCanvas ? 'none' : 'auto';
-    }
-    if (generalNoteWhiteboardPanel) {
-      generalNoteWhiteboardPanel.classList.toggle('privacy-locked', shouldHideCanvas);
-    }
-  }
+
 
   function setPrivacyMode(next) {
     privacyMode = Boolean(next);
@@ -2856,7 +2836,6 @@
       privacyToggleBtn.classList.toggle('is-on', privacyMode);
       privacyToggleBtn.setAttribute('aria-pressed', String(privacyMode));
     }
-    renderWhiteboardPrivacyOverlay();
     updateCloudMeta();
     renderAll();
   }
@@ -3925,7 +3904,6 @@
   document.querySelectorAll('.whiteboard-tool-btn[data-whiteboard-tool]').forEach((btn) => {
     if ((btn.dataset.whiteboardTool || 'pen') === whiteboardState.tool) btn.classList.add('active');
     btn.addEventListener('click', () => {
-      if (privacyMode) return;
       whiteboardState.tool = btn.dataset.whiteboardTool || 'pen';
       document.querySelectorAll('.whiteboard-tool-btn[data-whiteboard-tool]').forEach((n) => n.classList.toggle('active', n === btn));
     });
@@ -3933,7 +3911,7 @@
 
   if (whiteboardUndoBtn) {
     whiteboardUndoBtn.addEventListener('click', () => {
-      if (privacyMode || !whiteboardCanvas || !whiteboardState.undoStack.length) return;
+      if (!whiteboardCanvas || !whiteboardState.undoStack.length) return;
       const previous = whiteboardState.undoStack.pop();
       loadWhiteboardImage(previous || null);
       whiteboardState.touched = true;
@@ -3942,18 +3920,15 @@
 
   if (whiteboardClearBtn) {
     whiteboardClearBtn.addEventListener('click', () => {
-      if (privacyMode) return;
       pushWhiteboardUndo();
       fillWhiteboardBackground();
       whiteboardState.hasContent = false;
       whiteboardState.touched = true;
-      renderWhiteboardPrivacyOverlay();
     });
   }
 
   if (whiteboardCanvas) {
     const onPointerDown = (event) => {
-      if (privacyMode) return;
       if (event.pointerType === 'mouse' && event.button !== 0) return;
       const point = whiteboardPoint(event);
       if (whiteboardState.tool === 'text') {
@@ -4016,7 +3991,6 @@
       whiteboardState.baseSnapshot = null;
       whiteboardState.touched = true;
       whiteboardState.hasContent = true;
-      renderWhiteboardPrivacyOverlay();
     };
     whiteboardCanvas.addEventListener('pointerdown', onPointerDown);
     whiteboardCanvas.addEventListener('pointermove', onPointerMove);
