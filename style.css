@@ -360,7 +360,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, [contentedita
 .meeting-add-form > #meeting-title-input { grid-column: 1; grid-row: 1; }
 .meeting-add-form > .meeting-date-time-row { grid-column: 1; grid-row: 2; }
 .meeting-add-form > .meeting-notes-editor { grid-column: 1; grid-row: 3; }
-.meeting-add-form > .rtf-toolbar { grid-column: 1; grid-row: 4; justify-self: start; }
+.meeting-add-form > .notes-format-filter-row { grid-column: 1; grid-row: 4; }
 .meeting-add-form > button[type='submit'] { grid-column: 2; grid-row: 1 / span 4; align-self: stretch; min-width: 2rem; padding: 0.25rem 0.5rem; }
 
 .general-notes-toolbar .meeting-add-form { grid-template-columns: minmax(0, 1fr) auto; gap: 0.4rem; }
@@ -369,7 +369,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, [contentedita
 .general-note-date-row input { width: 100%; }
 .general-note-date-row button { min-width: 2rem; padding: 0.25rem 0.5rem; }
 .general-notes-toolbar .meeting-add-form > #general-note-editor { grid-column: 1 / span 2; grid-row: 3; }
-.general-notes-toolbar .meeting-add-form > .rtf-toolbar { grid-column: 1 / span 2; grid-row: 4; justify-self: start; }
+.general-notes-toolbar .meeting-add-form > .notes-format-filter-row { grid-column: 1 / span 2; grid-row: 4; }
 
 .rtf-toolbar { display: inline-flex; align-items: center; gap: 0.25rem; flex-wrap: wrap; min-width: 0; }
 .rtf-toolbar button { background: transparent; color: #334155; border: 1px solid #cbd5e1; border-radius: 4px; padding: 0.2rem 0.35rem; min-width: 1.5rem; font-size: 0.76rem; }
@@ -451,12 +451,14 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, [contentedita
 }
 
 @media (max-width: 760px) {
-  .action-format-filter-row {
+  .action-format-filter-row,
+  .notes-format-filter-row {
     align-items: flex-start;
     flex-wrap: wrap;
   }
 
-  .action-format-filter-row .rtf-toolbar {
+  .action-format-filter-row .rtf-toolbar,
+  .notes-format-filter-row .rtf-toolbar {
     flex: 0 0 auto;
   }
 
