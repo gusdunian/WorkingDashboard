@@ -17,7 +17,8 @@
   const CLOUD_LAST_UPDATED_AT_KEY = 'lastCloudUpdatedAt';
   const LOCAL_DIRTY_SINCE_KEY = 'localDirtySince';
   const LOCAL_STATE_VERSION_KEY = 'dashboardStateVersion';
-  const LATEST_STATE_VERSION = 10;
+  const PRIVACY_MODE_KEY = 'dashboardPrivacyMode';
+  const LATEST_STATE_VERSION = 11;
   const AUTOSYNC_DEBOUNCE_MS = 2000;
   const FOCUS_SYNC_DEBOUNCE_MS = 700;
   const PERSON_TAG_REGEX = /(^|[\s(>])(@[A-Za-z0-9_-]+)/g;
@@ -196,6 +197,16 @@
   const generalNoteBigEditDateInput = document.getElementById('general-note-big-edit-date-input');
   const generalNoteBigEditEditor = document.getElementById('general-note-big-edit-editor');
   const generalNoteBigEditDictateBtn = document.getElementById('general-note-big-edit-dictate');
+  const privacyToggleBtn = document.getElementById('privacy-toggle-btn');
+  const generalNoteTabText = document.getElementById('general-note-tab-text');
+  const generalNoteTabWhiteboard = document.getElementById('general-note-tab-whiteboard');
+  const generalNoteTextPanel = document.getElementById('general-note-text-panel');
+  const generalNoteWhiteboardPanel = document.getElementById('general-note-whiteboard-panel');
+  const whiteboardCanvas = document.getElementById('general-note-whiteboard-canvas');
+  const whiteboardColorInput = document.getElementById('whiteboard-color');
+  const whiteboardWidthInput = document.getElementById('whiteboard-width');
+  const whiteboardUndoBtn = document.getElementById('whiteboard-undo-btn');
+  const whiteboardClearBtn = document.getElementById('whiteboard-clear-btn');
   const mainContainer = document.getElementById('main-content');
   const columnsSection = document.querySelector('.columns');
   const signedOutMessage = document.getElementById('signed-out-message');
@@ -381,6 +392,99 @@
   let suppressThemePresetSync = false;
   let localDirtySince = Number(localStorage.getItem(LOCAL_DIRTY_SINCE_KEY)) || null;
 
+  let privacyMode = localStorage.getItem(PRIVACY_MODE_KEY) === '1';
+  const whiteboardState = {
+    mode: 'text',
+    tool: 'pen',
+    color: '#1f2937',
+    width: 3,
+    hasLoaded: false,
+    touched: false,
+    hasContent: false,
+    undoStack: [],
+    drawing: false,
+    start: null,
+    baseSnapshot: null,
+  };
+
+  function canMutateData() {
+    return !privacyMode;
+  }
+
+  function hashCode(value) {
+    const text = String(value || '');
+    let hash = 0;
+    for (let i = 0; i < text.length; i += 1) hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
+    return Math.abs(hash);
+  }
+
+  const PRIVACY_LOREM_LINES = [
+    'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+    'Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.',
+    'Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.',
+    'Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
+    'Curabitur pretium tincidunt lacus, nulla gravida orci a odio, semper porta lacus vehicula sed.',
+  ];
+
+  const PRIVACY_LOREM_BODIES = [
+    [
+      'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
+      'Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+      'Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.',
+    ],
+    [
+      'Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.',
+      'Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
+      'Integer posuere erat a ante venenatis dapibus posuere velit aliquet.',
+      'Praesent commodo cursus magna, vel scelerisque nisl consectetur et.',
+    ],
+    [
+      'Morbi leo risus, porta ac consectetur ac, vestibulum at eros.',
+      'Aenean lacinia bibendum nulla sed consectetur.',
+      'Maecenas sed diam eget risus varius blandit sit amet non magna.',
+      'Nulla vitae elit libero, a pharetra augue.',
+      'Donec sed odio dui, id elit non mi porta gravida at eget metus.',
+    ],
+  ];
+
+  function getPrivacyText(seed, kind = 'line') {
+    const seedHash = hashCode(seed || kind);
+    if (kind === 'modal') {
+      const body = PRIVACY_LOREM_BODIES[seedHash % PRIVACY_LOREM_BODIES.length];
+      const sentenceCount = 2 + (seedHash % Math.min(5, body.length - 1));
+      return body.slice(0, sentenceCount).join(' ');
+    }
+    const line = PRIVACY_LOREM_LINES[seedHash % PRIVACY_LOREM_LINES.length];
+    const minLength = 40;
+    const targetLength = minLength + (seedHash % 41);
+    const maxLength = Math.min(targetLength, line.length);
+    const clipped = line.slice(0, maxLength).trim();
+    const suffix = clipped.length < line.length ? '…' : '';
+    return `${clipped}${suffix}`;
+  }
+
+  function renderText(realText, seed, kind = 'line') {
+    if (!privacyMode) return realText;
+    return getPrivacyText(seed, kind);
+  }
+
+  function anonymizeText(value, kind = 'Item', id = '') {
+    return renderText(value, `${kind}:${id || value}`, 'line');
+  }
+
+  function anonymizeInlineHtml(value, kind = 'Item', id = '') {
+    return escapeHtml(renderText(value, `${kind}:${id || value}`, 'line'));
+  }
+
+  function anonymizeRichHtml(value, kind = 'Note', id = '') {
+    return `<p>${escapeHtml(renderText(value, `${kind}:${id || value}`, 'modal'))}</p>`;
+  }
+
+  function renderEmailForPrivacy(email) {
+    if (privacyMode) return 'Signed in';
+    return email || '—';
+  }
+
   function escapeHtml(text) {
     return String(text || '')
       .replace(/&/g, '&amp;')
@@ -501,6 +605,7 @@
   }
 
   function collectPersonTags() {
+    if (privacyMode) return ['@Person'];
     const unique = new Map();
     [
       [lists.general.actions, extractPersonTagsFromAction],
@@ -522,6 +627,7 @@
   }
 
   function collectHashTags() {
+    if (privacyMode) return ['#Tag'];
     const unique = new Map();
     [
       [lists.general.actions, extractHashTagsFromAction],
@@ -651,6 +757,8 @@
       text,
       createdAt: Number(item?.createdAt) || Date.now(),
       updatedAt: Number(item?.updatedAt) || Date.now(),
+      whiteboardDataUrl: typeof item?.whiteboardDataUrl === 'string' && item.whiteboardDataUrl.startsWith('data:image/') ? item.whiteboardDataUrl : null,
+      whiteboardMeta: item?.whiteboardMeta && typeof item.whiteboardMeta === 'object' ? item.whiteboardMeta : null,
     };
   }
 
@@ -785,6 +893,7 @@
   }
 
   function saveList(list) {
+    if (!canMutateData()) return;
     syncAppStateFromMemory();
     markLocalDirty();
     localStorage.setItem(list.key, JSON.stringify(list.actions));
@@ -792,6 +901,7 @@
   }
 
   function saveMeetings() {
+    if (!canMutateData()) return;
     syncAppStateFromMemory();
     markLocalDirty();
     localStorage.setItem(MEETING_STORAGE_KEY, JSON.stringify(meeting.items));
@@ -799,6 +909,7 @@
   }
 
   function saveBigTicketItems() {
+    if (!canMutateData()) return;
     syncAppStateFromMemory();
     markLocalDirty();
     localStorage.setItem('bigTicketItems', JSON.stringify(bigTicket.items));
@@ -806,6 +917,7 @@
   }
 
   function saveGeneralNotes() {
+    if (!canMutateData()) return;
     syncAppStateFromMemory();
     markLocalDirty();
     localStorage.setItem('generalNotes', JSON.stringify(generalNotes.items));
@@ -813,6 +925,7 @@
   }
 
   function saveUiState(options = {}) {
+    if (!canMutateData() && options.privacyBypass !== true) return;
     const shouldMarkDirty = options.markDirty !== false;
     const shouldAutosync = options.autosync !== false;
     syncAppStateFromMemory();
@@ -822,6 +935,7 @@
   }
 
   function saveMeetingUIState() {
+    if (!canMutateData()) return;
     syncAppStateFromMemory();
     markLocalDirty();
     localStorage.setItem(MEETING_UI_STORAGE_KEY, JSON.stringify(meeting.uiState));
@@ -829,6 +943,7 @@
   }
 
   function saveNextNumber() {
+    if (!canMutateData()) return;
     syncAppStateFromMemory();
     markLocalDirty();
     localStorage.setItem(NEXT_NUMBER_STORAGE_KEY, String(nextActionNumber));
@@ -1189,7 +1304,7 @@
   }
 
   function updateCloudMeta() {
-    const email = cloud.signedInUser?.email || '—';
+    const email = renderEmailForPrivacy(cloud.signedInUser?.email || '—');
     if (cloud.signedInEmailEl) {
       cloud.signedInEmailEl.textContent = email;
     }
@@ -1227,7 +1342,8 @@
     cloud.statusEl.textContent = nextMessage;
     cloud.statusEl.className = `cloud-status cloud-status-${normalizedType}`;
     const shouldToast = options.toast !== false;
-    if (normalizedType !== 'loading' && shouldToast) {
+    const criticalToast = normalizedType === 'error' || normalizedType === 'warning';
+    if (normalizedType !== 'loading' && shouldToast && criticalToast) {
       showToast(nextMessage, normalizedType === 'warning' ? 'warning' : normalizedType);
     }
   }
@@ -1552,12 +1668,14 @@
   }
 
   function actionHasPersonTag(action, selectedFilter) {
+    if (privacyMode) return true;
     if (!selectedFilter || selectedFilter === 'All') return true;
     const selectedLower = selectedFilter.toLowerCase();
     return extractPersonTagsFromAction(action).some((tag) => tag.toLowerCase() === selectedLower);
   }
 
   function actionHasHashTag(action, selectedFilter) {
+    if (privacyMode) return true;
     if (!selectedFilter || selectedFilter === 'All') return true;
     const selectedLower = selectedFilter.toLowerCase();
     return extractHashTagsFromAction(action).some((tag) => tag.toLowerCase() === selectedLower);
@@ -1670,6 +1788,7 @@
       checkbox.checked = action.completed;
       checkbox.disabled = action.deleted;
       checkbox.addEventListener('change', () => {
+        if (privacyMode) { checkbox.checked = action.completed; return; }
         action.completed = checkbox.checked;
         action.completedAt = action.completed ? Date.now() : null;
         action.updatedAt = Date.now();
@@ -1689,13 +1808,15 @@
       if (list.showDates) {
         const prefix = document.createElement('span');
         prefix.className = 'action-date-prefix';
-        prefix.innerHTML = `(${buildPrefix(action)})`;
+        prefix.innerHTML = buildPrefix(action);
         textWrap.appendChild(prefix);
       }
 
       const text = document.createElement('span');
       text.className = 'action-text';
-      text.innerHTML = action.html_inline || escapeHtml(action.text);
+      text.innerHTML = privacyMode
+        ? anonymizeInlineHtml(action.text, 'Action', actionKey)
+        : (action.html_inline || escapeHtml(action.text));
       if (action.urgencyLevel === 2 && !action.completed && !action.deleted) text.classList.add('super-urgent-text');
       textWrap.appendChild(text);
 
@@ -1782,6 +1903,7 @@
   }
 
   function meetingMatchesFilters(item) {
+    if (privacyMode) return true;
     const selectedPerson = getSelectedPersonFilter();
     const selectedTag = getSelectedTagFilter();
     const personMatches = selectedPerson === 'All'
@@ -1932,7 +2054,7 @@
 
     const notesWrap = document.createElement('div');
     notesWrap.className = 'meeting-notes-rendered';
-    notesWrap.innerHTML = item.notesHtml;
+    notesWrap.innerHTML = privacyMode ? anonymizeRichHtml(item.notesText, 'Meeting notes', item.id) : item.notesHtml;
 
     const controls = document.createElement('div');
     controls.className = 'meeting-detail-controls';
@@ -2055,7 +2177,9 @@
           const summary = document.createElement('button');
           summary.type = 'button';
           summary.className = 'meeting-summary';
-          summary.textContent = `${formatWeekday(date)} ${formatLocalDate(date)} ${formatTime24(date)} — ${item.title}`;
+          summary.textContent = privacyMode
+            ? `${formatWeekday(date)} ${formatLocalDate(date)} ${formatTime24(date)} — ${anonymizeText(item.title, 'Meeting', item.id)}`
+            : `${formatWeekday(date)} ${formatLocalDate(date)} ${formatTime24(date)} — ${item.title}`;
           summary.addEventListener('click', () => {
             meeting.expandedId = meeting.expandedId === item.id ? null : item.id;
             meeting.editingId = null;
@@ -2167,18 +2291,11 @@
       const number = document.createElement('span');
       number.className = 'action-number';
       number.textContent = `${index + 1}.`;
-      if (item.timingFlag === 'T' || item.timingFlag === 'D') {
-        const timingPill = document.createElement('span');
-        timingPill.className = 'timing-pill';
-        timingPill.textContent = item.timingFlag;
-        timingPill.classList.add(item.timingFlag === 'T' ? 'timing-pill-t' : 'timing-pill-d');
-        number.append(' ', timingPill);
-      }
 
       const summary = document.createElement('button');
       summary.type = 'button';
       summary.className = 'big-ticket-summary';
-      summary.innerHTML = item.html_inline || escapeHtml(item.text);
+      summary.innerHTML = privacyMode ? anonymizeInlineHtml(item.text, 'Big ticket', item.id) : (item.html_inline || escapeHtml(item.text));
       summary.addEventListener('click', () => openBigTicketModal(item.id));
 
       const controls = document.createElement('div');
@@ -2194,7 +2311,11 @@
       urgentBtn.addEventListener('click', (event) => {
         event.stopPropagation();
         item.urgencyLevel = cycleUrgencyLevel(item.urgencyLevel);
-        item.updatedAt = Date.now();
+        if (whiteboardState.touched || whiteboardState.hasContent) {
+      item.whiteboardDataUrl = whiteboardCanvas ? whiteboardCanvas.toDataURL('image/png') : item.whiteboardDataUrl;
+      item.whiteboardMeta = whiteboardCanvas ? { width: whiteboardCanvas.width, height: whiteboardCanvas.height, updatedAt: Date.now() } : item.whiteboardMeta;
+    }
+    item.updatedAt = Date.now();
         saveBigTicketItems();
         renderBigTicketItems();
       });
@@ -2281,6 +2402,7 @@
 
 
   function generalNoteMatchesFilters(note) {
+    if (privacyMode) return true;
     const selectedPerson = getSelectedPersonFilter();
     const selectedTag = getSelectedTagFilter();
     const personMatches = selectedPerson === 'All'
@@ -2346,7 +2468,8 @@
         summary.type = 'button';
         summary.className = 'general-note-summary';
         const day = note.date.split('-').reverse().slice(0, 2).join('/');
-        summary.textContent = `${day} — ${note.title}`;
+        const renderedTitle = privacyMode ? anonymizeText(note.title, 'Note', note.id) : note.title;
+        summary.textContent = `${day} — ${renderedTitle}`;
         summary.addEventListener('click', () => {
           generalNotes.expandedId = generalNotes.expandedId === note.id ? null : note.id;
           generalNotes.editingId = null;
@@ -2364,7 +2487,15 @@
           openGeneralNoteBigEdit(note.id);
         });
 
-        row.append(summary, quickEditBtn);
+        if (note.whiteboardDataUrl) {
+          const whiteboardIndicator = document.createElement('span');
+          whiteboardIndicator.className = 'general-note-whiteboard-indicator';
+          whiteboardIndicator.setAttribute('aria-hidden', 'true');
+          whiteboardIndicator.textContent = '🖊';
+          row.append(summary, whiteboardIndicator, quickEditBtn);
+        } else {
+          row.append(summary, quickEditBtn);
+        }
         li.appendChild(row);
 
         if (generalNotes.expandedId === note.id) {
@@ -2387,12 +2518,13 @@
             controls.append(save,cancel);
             form.append(d,t,toolbar,editor,controls);
             bindRtfToolbar(toolbar); bindEditorShortcuts(editor);
-            form.addEventListener('submit',(e)=>{e.preventDefault(); const html=sanitizeRichHtml(editor.innerHTML); const text=htmlToPlainText(html); const title=t.value.trim(); if(!title||!d.value||!text)return; note.date=d.value; note.title=title; note.html=html; note.text=text; note.html_inline=richHtmlToInlineHtml(html); note.updatedAt=Date.now(); saveGeneralNotes(); generalNotes.editingId=null; renderGeneralNotes();});
+            form.addEventListener('submit',(e)=>{e.preventDefault(); if (privacyMode) return; const html=sanitizeRichHtml(editor.innerHTML); const text=htmlToPlainText(html); const title=t.value.trim(); if(!title||!d.value||!text)return; note.date=d.value; note.title=title; note.html=html; note.text=text; note.html_inline=richHtmlToInlineHtml(html); note.updatedAt=Date.now(); saveGeneralNotes(); generalNotes.editingId=null; renderGeneralNotes();});
             detail.appendChild(form);
           } else {
-            const notes = document.createElement('div'); notes.className = 'meeting-notes-rendered'; notes.innerHTML = note.html;
+            const notes = document.createElement('div'); notes.className = 'meeting-notes-rendered';
+            notes.innerHTML = privacyMode ? anonymizeRichHtml(note.text, 'Note text', note.id) : note.html;
             const controls = document.createElement('div'); controls.className = 'meeting-detail-controls';
-            const edit = document.createElement('button'); edit.type='button'; edit.className='meeting-link-btn'; edit.textContent='Edit'; edit.addEventListener('click',()=>{generalNotes.editingId=note.id; renderGeneralNotes();});
+            const edit = document.createElement('button'); edit.type='button'; edit.className='meeting-link-btn'; edit.textContent='Edit'; edit.addEventListener('click',()=>{ if (privacyMode) return; generalNotes.editingId=note.id; renderGeneralNotes();});
             const big = document.createElement('button'); big.type='button'; big.className='meeting-link-btn'; big.textContent='Big edit'; big.addEventListener('click',()=>openGeneralNoteBigEdit(note.id));
             const del = document.createElement('button'); del.type='button'; del.className='meeting-link-btn delete'; del.textContent='Delete'; del.addEventListener('click',()=>{generalNotes.items=generalNotes.items.filter((n)=>n.id!==note.id); if(generalNotes.expandedId===note.id)generalNotes.expandedId=null; saveGeneralNotes(); renderGeneralNotes();});
             controls.append(edit,big,del);
@@ -2433,6 +2565,7 @@
   }
 
   function addAction(list, rawHtml, options = {}) {
+    if (privacyMode) return;
     const html = sanitizeRichHtml(rawHtml);
     const text = htmlToPlainText(html);
     if (!text) return;
@@ -2467,6 +2600,7 @@
   }
 
   function addMeeting(titleRaw, dateRaw, timeRaw, notesHtmlRaw) {
+    if (privacyMode) return false;
     const title = titleRaw.trim();
     const parsed = parseLocalDateTime(dateRaw, timeRaw);
     const notesHtml = sanitizeRichHtml(notesHtmlRaw);
@@ -2491,6 +2625,7 @@
 
 
   function addBigTicketItem(rawHtml) {
+    if (privacyMode) return false;
     const html = sanitizeRichHtml(rawHtml);
     const text = htmlToPlainText(html);
     if (!text) return false;
@@ -2505,12 +2640,14 @@
     const item = bigTicket.items.find((entry) => entry.id === id);
     if (!item) return;
     bigTicket.activeId = id;
-    bigTicketModalEditor.innerHTML = item.html;
+    bigTicketModalEditor.innerHTML = privacyMode ? anonymizeRichHtml(item.text, 'Big ticket', item.id) : item.html;
+    bigTicketModalEditor.contentEditable = privacyMode ? 'false' : 'true';
     bigTicketModal.hidden = false;
     bigTicketModalEditor.focus();
   }
 
   function saveBigTicketModal() {
+    if (privacyMode) return false;
     const item = bigTicket.items.find((entry) => entry.id === bigTicket.activeId);
     if (!item) return false;
     const html = sanitizeRichHtml(bigTicketModalEditor.innerHTML);
@@ -2519,6 +2656,10 @@
     item.html = html;
     item.text = text;
     item.html_inline = richHtmlToInlineHtml(html);
+    if (whiteboardState.touched || whiteboardState.hasContent) {
+      item.whiteboardDataUrl = whiteboardCanvas ? whiteboardCanvas.toDataURL('image/png') : item.whiteboardDataUrl;
+      item.whiteboardMeta = whiteboardCanvas ? { width: whiteboardCanvas.width, height: whiteboardCanvas.height, updatedAt: Date.now() } : item.whiteboardMeta;
+    }
     item.updatedAt = Date.now();
     saveBigTicketItems();
     renderBigTicketItems();
@@ -2532,12 +2673,13 @@
   }
 
   function addGeneralNote(dateRaw, titleRaw, htmlRaw) {
+    if (privacyMode) return false;
     const title = titleRaw.trim();
     const html = sanitizeRichHtml(htmlRaw);
     const text = htmlToPlainText(html);
     if (!dateRaw || !title || !text) return false;
     const now = Date.now();
-    generalNotes.items.push({ id: `gn-${now}-${Math.random().toString(16).slice(2)}`, date: dateRaw, title, html, html_inline: richHtmlToInlineHtml(html), text, createdAt: now, updatedAt: now });
+    generalNotes.items.push({ id: `gn-${now}-${Math.random().toString(16).slice(2)}`, date: dateRaw, title, html, html_inline: richHtmlToInlineHtml(html), text, createdAt: now, updatedAt: now, whiteboardDataUrl: null, whiteboardMeta: null });
     saveGeneralNotes();
     renderGeneralNotes();
     activeGeneralNoteBigEditDraft = null;
@@ -2552,11 +2694,20 @@
     const item = getGeneralNoteById(id);
     if (!item) return;
     activeGeneralNoteBigEditId = id;
-    activeGeneralNoteBigEditDraft = { title: item.title, date: item.date, html: item.html };
-    generalNoteBigEditTitleInput.value = item.title;
+    activeGeneralNoteBigEditDraft = { title: item.title, date: item.date, html: item.html, whiteboardDataUrl: item.whiteboardDataUrl, whiteboardMeta: item.whiteboardMeta };
+    generalNoteBigEditTitleInput.value = privacyMode ? anonymizeText(item.title, 'Note', item.id) : item.title;
     generalNoteBigEditDateInput.value = item.date;
-    generalNoteBigEditEditor.innerHTML = item.html;
+    generalNoteBigEditEditor.innerHTML = privacyMode ? anonymizeRichHtml(item.text, 'Note text', item.id) : item.html;
+    generalNoteBigEditTitleInput.disabled = privacyMode;
+    generalNoteBigEditDateInput.disabled = privacyMode;
+    generalNoteBigEditEditor.contentEditable = privacyMode ? 'false' : 'true';
     generalNoteBigEditModal.hidden = false;
+    setGeneralNoteEditMode('text');
+    whiteboardState.undoStack = [];
+    whiteboardState.touched = false;
+    whiteboardState.hasContent = Boolean(item.whiteboardDataUrl);
+    resizeWhiteboardCanvas();
+    loadWhiteboardImage(item.whiteboardDataUrl);
   }
 
   function closeGeneralNoteBigEdit() {
@@ -2565,13 +2716,18 @@
       generalNoteBigEditTitleInput.value = activeGeneralNoteBigEditDraft.title;
       generalNoteBigEditDateInput.value = activeGeneralNoteBigEditDraft.date;
       generalNoteBigEditEditor.innerHTML = activeGeneralNoteBigEditDraft.html;
+      loadWhiteboardImage(activeGeneralNoteBigEditDraft.whiteboardDataUrl || null);
     }
+    generalNoteBigEditTitleInput.disabled = false;
+    generalNoteBigEditDateInput.disabled = false;
+    generalNoteBigEditEditor.contentEditable = 'true';
     generalNoteBigEditModal.hidden = true;
     activeGeneralNoteBigEditId = null;
     activeGeneralNoteBigEditDraft = null;
   }
 
   function saveGeneralNoteBigEdit() {
+    if (privacyMode) return false;
     const item = getGeneralNoteById(activeGeneralNoteBigEditId);
     if (!item) return false;
     const title = generalNoteBigEditTitleInput.value.trim();
@@ -2584,12 +2740,154 @@
     item.html = html;
     item.text = text;
     item.html_inline = richHtmlToInlineHtml(html);
+    if (whiteboardState.touched || whiteboardState.hasContent) {
+      item.whiteboardDataUrl = whiteboardCanvas ? whiteboardCanvas.toDataURL('image/png') : item.whiteboardDataUrl;
+      item.whiteboardMeta = whiteboardCanvas ? { width: whiteboardCanvas.width, height: whiteboardCanvas.height, updatedAt: Date.now() } : item.whiteboardMeta;
+    }
     item.updatedAt = Date.now();
     saveGeneralNotes();
     renderGeneralNotes();
     return true;
   }
 
+
+
+  function setGeneralNoteEditMode(mode) {
+    const nextMode = mode === 'whiteboard' ? 'whiteboard' : 'text';
+    whiteboardState.mode = nextMode;
+    if (generalNoteTabText) {
+      const active = nextMode === 'text';
+      generalNoteTabText.classList.toggle('active', active);
+      generalNoteTabText.setAttribute('aria-selected', String(active));
+    }
+    if (generalNoteTabWhiteboard) {
+      const active = nextMode === 'whiteboard';
+      generalNoteTabWhiteboard.classList.toggle('active', active);
+      generalNoteTabWhiteboard.setAttribute('aria-selected', String(active));
+    }
+    if (generalNoteTextPanel) generalNoteTextPanel.hidden = nextMode !== 'text';
+    if (generalNoteWhiteboardPanel) generalNoteWhiteboardPanel.hidden = nextMode !== 'whiteboard';
+    if (nextMode === 'whiteboard') {
+      const item = getGeneralNoteById(activeGeneralNoteBigEditId);
+      resizeWhiteboardCanvas();
+      loadWhiteboardImage(item?.whiteboardDataUrl || activeGeneralNoteBigEditDraft?.whiteboardDataUrl || null);
+    }
+  }
+
+  function getWhiteboardCtx() {
+    if (!whiteboardCanvas) return null;
+    return whiteboardCanvas.getContext('2d');
+  }
+
+  function fillWhiteboardBackground() {
+    const ctx = getWhiteboardCtx();
+    if (!ctx || !whiteboardCanvas) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+    ctx.restore();
+  }
+
+  function pushWhiteboardUndo() {
+    if (!whiteboardCanvas) return;
+    whiteboardState.undoStack.push(whiteboardCanvas.toDataURL('image/png'));
+    if (whiteboardState.undoStack.length > 30) whiteboardState.undoStack.shift();
+  }
+
+  function loadWhiteboardImage(dataUrl) {
+    if (!whiteboardCanvas) return;
+    const ctx = getWhiteboardCtx();
+    fillWhiteboardBackground();
+    if (!dataUrl) {
+      whiteboardState.hasContent = false;
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+      whiteboardState.hasContent = true;
+    };
+    img.src = dataUrl;
+  }
+
+  function resizeWhiteboardCanvas() {
+    if (!whiteboardCanvas || !generalNoteWhiteboardPanel) return;
+    const rect = whiteboardCanvas.getBoundingClientRect();
+    const cssWidth = Math.max(300, Math.floor(rect.width || generalNoteWhiteboardPanel.clientWidth || 600));
+    const cssHeight = Math.max(240, Math.floor(rect.height || (generalNoteWhiteboardPanel.clientHeight - 10) || 320));
+    const dpr = window.devicePixelRatio || 1;
+    const prev = whiteboardCanvas.toDataURL('image/png');
+    whiteboardCanvas.width = Math.floor(cssWidth * dpr);
+    whiteboardCanvas.height = Math.floor(cssHeight * dpr);
+    const ctx = getWhiteboardCtx();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    fillWhiteboardBackground();
+    if (prev) {
+      const img = new Image();
+      img.onload = () => ctx.drawImage(img, 0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+      img.src = prev;
+    }
+  }
+
+  function whiteboardPoint(event) {
+    const rect = whiteboardCanvas.getBoundingClientRect();
+    const scaleX = whiteboardCanvas.width / rect.width;
+    const scaleY = whiteboardCanvas.height / rect.height;
+    return { x: (event.clientX - rect.left) * scaleX, y: (event.clientY - rect.top) * scaleY };
+  }
+
+  function drawShapePreview(start, end) {
+    const ctx = getWhiteboardCtx();
+    if (!ctx) return;
+    const snapshot = whiteboardState.baseSnapshot;
+    if (!snapshot) return;
+    const img = new Image();
+    img.onload = () => {
+      fillWhiteboardBackground();
+      ctx.drawImage(img, 0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+      drawShape(start, end);
+    };
+    img.src = snapshot;
+  }
+
+  function drawShape(start, end) {
+    const ctx = getWhiteboardCtx();
+    if (!ctx) return;
+    ctx.lineWidth = Number(whiteboardWidthInput?.value || whiteboardState.width || 3);
+    ctx.strokeStyle = whiteboardColorInput?.value || whiteboardState.color;
+    ctx.globalCompositeOperation = 'source-over';
+    if (whiteboardState.tool === 'line') {
+      ctx.beginPath();
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+      ctx.stroke();
+    } else if (whiteboardState.tool === 'rect') {
+      ctx.strokeRect(start.x, start.y, end.x - start.x, end.y - start.y);
+    } else if (whiteboardState.tool === 'circle') {
+      const rx = (end.x - start.x) / 2;
+      const ry = (end.y - start.y) / 2;
+      const cx = start.x + rx;
+      const cy = start.y + ry;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, Math.abs(rx), Math.abs(ry), 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+
+
+  function setPrivacyMode(next) {
+    privacyMode = Boolean(next);
+    localStorage.setItem(PRIVACY_MODE_KEY, privacyMode ? '1' : '0');
+    if (privacyToggleBtn) {
+      privacyToggleBtn.textContent = privacyMode ? 'Privacy On' : 'Privacy';
+      privacyToggleBtn.classList.toggle('is-on', privacyMode);
+      privacyToggleBtn.setAttribute('aria-pressed', String(privacyMode));
+    }
+    updateCloudMeta();
+    renderAll();
+  }
 
   function fillSettingsForm(themeLike) {
     const themeState = normalizeThemeState(themeLike || uiState.theme);
@@ -2716,7 +3014,8 @@
     activeModalContext = { list, actionKey };
     modalTitle.textContent = list.hideNumber ? 'Action details' : `${action.number}`;
     modalStatus.textContent = modalStatusText(action);
-    modalTextInput.innerHTML = action.html;
+    modalTextInput.innerHTML = privacyMode ? anonymizeRichHtml(action.text, 'Action', actionKey) : action.html;
+    modalTextInput.contentEditable = privacyMode ? 'false' : 'true';
     updateModalUrgencyUI(action);
     updateModalTimeDependentUI(action);
     modal.hidden = false;
@@ -2959,11 +3258,16 @@
       minute: ALLOWED_MINUTES.includes(String(date.getMinutes()).padStart(2, '0')) ? String(date.getMinutes()).padStart(2, '0') : '00',
       notesHtml: item.notesHtml,
     };
-    meetingBigEditTitleInput.value = item.title;
+    meetingBigEditTitleInput.value = privacyMode ? anonymizeText(item.title, 'Meeting', item.id) : item.title;
     meetingBigEditDateInput.value = dateToDateValue(date);
     meetingBigEditHourInput.value = activeMeetingBigEditDraft.hour;
     meetingBigEditMinuteInput.value = activeMeetingBigEditDraft.minute;
-    meetingBigEditNotesEditor.innerHTML = activeMeetingBigEditDraft.notesHtml;
+    meetingBigEditNotesEditor.innerHTML = privacyMode ? anonymizeRichHtml(item.notesText, 'Meeting notes', item.id) : activeMeetingBigEditDraft.notesHtml;
+    meetingBigEditTitleInput.disabled = privacyMode;
+    meetingBigEditDateInput.disabled = privacyMode;
+    meetingBigEditHourInput.disabled = privacyMode;
+    meetingBigEditMinuteInput.disabled = privacyMode;
+    meetingBigEditNotesEditor.contentEditable = privacyMode ? 'false' : 'true';
     meetingBigEditModal.hidden = false;
     meetingBigEditTitleInput.focus();
   }
@@ -2977,12 +3281,18 @@
       meetingBigEditMinuteInput.value = activeMeetingBigEditDraft.minute;
       meetingBigEditNotesEditor.innerHTML = activeMeetingBigEditDraft.notesHtml;
     }
+    meetingBigEditTitleInput.disabled = false;
+    meetingBigEditDateInput.disabled = false;
+    meetingBigEditHourInput.disabled = false;
+    meetingBigEditMinuteInput.disabled = false;
+    meetingBigEditNotesEditor.contentEditable = 'true';
     meetingBigEditModal.hidden = true;
     activeMeetingBigEditId = null;
     activeMeetingBigEditDraft = null;
   }
 
   function saveMeetingBigEdit() {
+    if (privacyMode) return false;
     const item = getMeetingById(activeMeetingBigEditId);
     if (!item) return false;
     const title = meetingBigEditTitleInput.value.trim();
@@ -3138,7 +3448,7 @@
   }
 
   function requestAutosync() {
-    if (suppressAutosync || cloud.importInProgress || !isAuthenticated || !cloud.signedInUser) return;
+    if (privacyMode || suppressAutosync || cloud.importInProgress || !isAuthenticated || !cloud.signedInUser) return;
     autosyncPending = true;
     if (autosyncTimer) {
       window.clearTimeout(autosyncTimer);
@@ -3332,8 +3642,7 @@
         return true;
       }
       const verb = mode === 'overwrite' ? 'overwrite' : 'merge';
-      setStatus(`Imported (${verb})`, 'success');
-      showToast(`Imported (${verb})`, 'success');
+      setStatus(`Imported (${verb})`, 'success', { toast: false });
       return true;
     } catch (error) {
       setStatus(`Import failed: ${error.message}`, 'error');
@@ -3357,7 +3666,7 @@
       }
       setLoading(false);
       if (event === 'SIGNED_OUT') {
-        setStatus('Signed out', 'info');
+        setStatus('Signed out', 'info', { toast: false });
       }
       return;
     }
@@ -3378,9 +3687,6 @@
         const defaultState = emptyDashboardState();
         setLocalDashboardState(defaultState);
         await pushCloudState({ silentSuccess: true });
-      }
-      if (cloud.signedInUser.email) {
-        showToast(`Signed in as ${cloud.signedInUser.email}`, 'success');
       }
     }
   }
@@ -3633,6 +3939,116 @@
     selectEl.addEventListener('change', (event) => {
       setTagFilter(event.target.value || 'All');
     });
+  });
+
+
+  if (privacyToggleBtn) {
+    privacyToggleBtn.addEventListener('click', () => setPrivacyMode(!privacyMode));
+    setPrivacyMode(privacyMode);
+  }
+
+  if (generalNoteTabText) generalNoteTabText.addEventListener('click', () => setGeneralNoteEditMode('text'));
+  if (generalNoteTabWhiteboard) generalNoteTabWhiteboard.addEventListener('click', () => setGeneralNoteEditMode('whiteboard'));
+
+  document.querySelectorAll('.whiteboard-tool-btn[data-whiteboard-tool]').forEach((btn) => {
+    if ((btn.dataset.whiteboardTool || 'pen') === whiteboardState.tool) btn.classList.add('active');
+    btn.addEventListener('click', () => {
+      whiteboardState.tool = btn.dataset.whiteboardTool || 'pen';
+      document.querySelectorAll('.whiteboard-tool-btn[data-whiteboard-tool]').forEach((n) => n.classList.toggle('active', n === btn));
+    });
+  });
+
+  if (whiteboardUndoBtn) {
+    whiteboardUndoBtn.addEventListener('click', () => {
+      if (!whiteboardCanvas || !whiteboardState.undoStack.length) return;
+      const previous = whiteboardState.undoStack.pop();
+      loadWhiteboardImage(previous || null);
+      whiteboardState.touched = true;
+    });
+  }
+
+  if (whiteboardClearBtn) {
+    whiteboardClearBtn.addEventListener('click', () => {
+      pushWhiteboardUndo();
+      fillWhiteboardBackground();
+      whiteboardState.hasContent = false;
+      whiteboardState.touched = true;
+    });
+  }
+
+  if (whiteboardCanvas) {
+    const onPointerDown = (event) => {
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
+      const point = whiteboardPoint(event);
+      if (whiteboardState.tool === 'text') {
+        const text = window.prompt('Enter text');
+        if (!text) return;
+        pushWhiteboardUndo();
+        const ctx = getWhiteboardCtx();
+        if (!ctx) return;
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = whiteboardColorInput?.value || '#1f2937';
+        ctx.font = '16px sans-serif';
+        ctx.textBaseline = 'top';
+        ctx.fillText(text, point.x, point.y);
+        ctx.restore();
+        whiteboardState.touched = true;
+        whiteboardState.hasContent = true;
+        return;
+      }
+      whiteboardCanvas.setPointerCapture(event.pointerId);
+      event.preventDefault();
+      pushWhiteboardUndo();
+      whiteboardState.baseSnapshot = whiteboardCanvas.toDataURL('image/png');
+      whiteboardState.drawing = true;
+      whiteboardState.start = point;
+      const ctx = getWhiteboardCtx();
+      if (!ctx) return;
+      if (whiteboardState.tool === 'pen' || whiteboardState.tool === 'eraser') {
+        ctx.beginPath();
+        ctx.moveTo(whiteboardState.start.x, whiteboardState.start.y);
+      }
+    };
+    const onPointerMove = (event) => {
+      if (!whiteboardState.drawing) return;
+      const point = whiteboardPoint(event);
+      const ctx = getWhiteboardCtx();
+      if (!ctx) return;
+      if (whiteboardState.tool === 'pen' || whiteboardState.tool === 'eraser') {
+        ctx.lineWidth = Number(whiteboardWidthInput?.value || 3);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.globalCompositeOperation = whiteboardState.tool === 'eraser' ? 'destination-out' : 'source-over';
+        ctx.strokeStyle = whiteboardColorInput?.value || '#1f2937';
+        ctx.lineTo(point.x, point.y);
+        ctx.stroke();
+        ctx.globalCompositeOperation = 'source-over';
+      } else {
+        drawShapePreview(whiteboardState.start, point);
+      }
+    };
+    const onPointerUp = (event) => {
+      if (!whiteboardState.drawing) return;
+      if (whiteboardState.tool === 'line' || whiteboardState.tool === 'rect' || whiteboardState.tool === 'circle') {
+        drawShape(whiteboardState.start, whiteboardPoint(event));
+      }
+      if (whiteboardCanvas.hasPointerCapture(event.pointerId)) {
+        whiteboardCanvas.releasePointerCapture(event.pointerId);
+      }
+      whiteboardState.drawing = false;
+      whiteboardState.baseSnapshot = null;
+      whiteboardState.touched = true;
+      whiteboardState.hasContent = true;
+    };
+    whiteboardCanvas.addEventListener('pointerdown', onPointerDown);
+    whiteboardCanvas.addEventListener('pointermove', onPointerMove);
+    whiteboardCanvas.addEventListener('pointerup', onPointerUp);
+    whiteboardCanvas.addEventListener('pointercancel', onPointerUp);
+  }
+
+  window.addEventListener('resize', () => {
+    resizeWhiteboardCanvas();
   });
 
   bindListEvents(lists.general);

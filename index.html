@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Angus’ Working Dashboard</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -38,6 +39,7 @@
           <button id="cloud-settings-btn" type="button" class="cloud-btn" hidden>Settings</button>
         </div>
         <div class="cloud-status-row">
+          <button id="privacy-toggle-btn" type="button" class="cloud-btn privacy-toggle-btn" aria-pressed="false">Privacy</button>
           <button id="collapse-all-btn" type="button" class="cloud-btn" hidden>Hide</button>
           <div id="cloud-status" class="cloud-status cloud-status-info" role="status" aria-live="polite">Ready</div>
         </div>
@@ -509,13 +511,38 @@
         <form id="general-note-big-edit-form" class="meeting-big-edit-form" autocomplete="off">
           <input id="general-note-big-edit-title-input" name="title" type="text" maxlength="200" required />
           <input id="general-note-big-edit-date-input" name="date" type="date" required />
-          <div id="general-note-big-edit-editor" class="modal-editor" contenteditable="true" role="textbox" aria-multiline="true"></div>
-          <div class="rtf-toolbar" data-editor-target="general-note-big-edit-editor" role="toolbar" aria-label="General note big edit formatting">
-            <button type="button" data-command="bold" aria-label="Bold">B</button>
-            <button type="button" data-command="italic" aria-label="Italic">I</button>
-            <button type="button" data-command="underline" aria-label="Underline">U</button>
-            <button type="button" data-command="insertUnorderedList" aria-label="Bulleted list">•</button>
-            <button type="button" data-command="insertOrderedList" aria-label="Numbered list">1.</button>
+          <div class="general-note-edit-tabs" role="tablist" aria-label="Edit mode">
+            <button id="general-note-tab-text" type="button" class="edit-tab active" data-mode="text" role="tab" aria-selected="true">Text</button>
+            <button id="general-note-tab-whiteboard" type="button" class="edit-tab" data-mode="whiteboard" role="tab" aria-selected="false">Whiteboard</button>
+          </div>
+          <div id="general-note-text-panel" class="general-note-edit-panel" role="tabpanel">
+            <div id="general-note-big-edit-editor" class="modal-editor" contenteditable="true" role="textbox" aria-multiline="true"></div>
+            <div class="rtf-toolbar" data-editor-target="general-note-big-edit-editor" role="toolbar" aria-label="General note big edit formatting">
+              <button type="button" data-command="bold" aria-label="Bold">B</button>
+              <button type="button" data-command="italic" aria-label="Italic">I</button>
+              <button type="button" data-command="underline" aria-label="Underline">U</button>
+              <button type="button" data-command="insertUnorderedList" aria-label="Bulleted list">•</button>
+              <button type="button" data-command="insertOrderedList" aria-label="Numbered list">1.</button>
+            </div>
+          </div>
+          <div id="general-note-whiteboard-panel" class="general-note-edit-panel" role="tabpanel" hidden>
+            <div class="whiteboard-layout">
+              <div class="whiteboard-toolbar">
+                <button type="button" class="whiteboard-tool-btn" data-whiteboard-tool="pen">Pen</button>
+                <button type="button" class="whiteboard-tool-btn" data-whiteboard-tool="eraser">Eraser</button>
+                <button type="button" class="whiteboard-tool-btn" data-whiteboard-tool="line">Line</button>
+                <button type="button" class="whiteboard-tool-btn" data-whiteboard-tool="rect">Rectangle</button>
+                <button type="button" class="whiteboard-tool-btn" data-whiteboard-tool="circle">Circle</button>
+                <button type="button" class="whiteboard-tool-btn" data-whiteboard-tool="text">Text</button>
+                <input id="whiteboard-color" type="color" value="#1f2937" aria-label="Whiteboard colour" />
+                <input id="whiteboard-width" type="range" min="1" max="24" value="3" aria-label="Stroke width" />
+                <button id="whiteboard-undo-btn" type="button" class="whiteboard-tool-btn">Undo</button>
+                <button id="whiteboard-clear-btn" type="button" class="whiteboard-tool-btn">Clear</button>
+              </div>
+              <div class="whiteboard-canvas-wrap">
+                <canvas id="general-note-whiteboard-canvas" aria-label="General note whiteboard"></canvas>
+              </div>
+            </div>
           </div>
           <div class="modal-footer">
             <button id="general-note-big-edit-dictate" type="button" class="subtle-button">Dictate</button>
