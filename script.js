@@ -203,10 +203,15 @@
   const generalNoteTextPanel = document.getElementById('general-note-text-panel');
   const generalNoteWhiteboardPanel = document.getElementById('general-note-whiteboard-panel');
   const whiteboardCanvas = document.getElementById('general-note-whiteboard-canvas');
+  const whiteboardCanvasWrap = whiteboardCanvas?.closest('.whiteboard-canvas-wrap') || null;
   const whiteboardColorInput = document.getElementById('whiteboard-color');
   const whiteboardWidthInput = document.getElementById('whiteboard-width');
   const whiteboardUndoBtn = document.getElementById('whiteboard-undo-btn');
   const whiteboardClearBtn = document.getElementById('whiteboard-clear-btn');
+  const whiteboardImageActions = document.getElementById('whiteboard-image-actions');
+  const whiteboardImageDeleteBtn = document.getElementById('whiteboard-image-delete-btn');
+  const whiteboardImageForwardBtn = document.getElementById('whiteboard-image-forward-btn');
+  const whiteboardImageBackwardBtn = document.getElementById('whiteboard-image-backward-btn');
   const mainContainer = document.getElementById('main-content');
   const columnsSection = document.querySelector('.columns');
   const signedOutMessage = document.getElementById('signed-out-message');
@@ -405,6 +410,11 @@
     drawing: false,
     start: null,
     baseSnapshot: null,
+    images: [],
+    selectedImageId: null,
+    draggingImageId: null,
+    dragOffset: { x: 0, y: 0 },
+    lastPointerPosition: null,
   };
 
   function canMutateData() {
@@ -759,6 +769,18 @@
       updatedAt: Number(item?.updatedAt) || Date.now(),
       whiteboardDataUrl: typeof item?.whiteboardDataUrl === 'string' && item.whiteboardDataUrl.startsWith('data:image/') ? item.whiteboardDataUrl : null,
       whiteboardMeta: item?.whiteboardMeta && typeof item.whiteboardMeta === 'object' ? item.whiteboardMeta : null,
+      whiteboardImages: Array.isArray(item?.whiteboardImages)
+        ? item.whiteboardImages
+          .map((img) => ({
+            id: typeof img?.id === 'string' && img.id ? img.id : `wbi-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            x: Number(img?.x) || 0,
+            y: Number(img?.y) || 0,
+            w: Math.max(1, Number(img?.w) || 1),
+            h: Math.max(1, Number(img?.h) || 1),
+            dataUrl: typeof img?.dataUrl === 'string' && img.dataUrl.startsWith('data:image/') ? img.dataUrl : null,
+          }))
+          .filter((img) => img.dataUrl)
+        : [],
     };
   }
 
@@ -2311,11 +2333,7 @@
       urgentBtn.addEventListener('click', (event) => {
         event.stopPropagation();
         item.urgencyLevel = cycleUrgencyLevel(item.urgencyLevel);
-        if (whiteboardState.touched || whiteboardState.hasContent) {
-      item.whiteboardDataUrl = whiteboardCanvas ? whiteboardCanvas.toDataURL('image/png') : item.whiteboardDataUrl;
-      item.whiteboardMeta = whiteboardCanvas ? { width: whiteboardCanvas.width, height: whiteboardCanvas.height, updatedAt: Date.now() } : item.whiteboardMeta;
-    }
-    item.updatedAt = Date.now();
+        item.updatedAt = Date.now();
         saveBigTicketItems();
         renderBigTicketItems();
       });
@@ -2656,10 +2674,6 @@
     item.html = html;
     item.text = text;
     item.html_inline = richHtmlToInlineHtml(html);
-    if (whiteboardState.touched || whiteboardState.hasContent) {
-      item.whiteboardDataUrl = whiteboardCanvas ? whiteboardCanvas.toDataURL('image/png') : item.whiteboardDataUrl;
-      item.whiteboardMeta = whiteboardCanvas ? { width: whiteboardCanvas.width, height: whiteboardCanvas.height, updatedAt: Date.now() } : item.whiteboardMeta;
-    }
     item.updatedAt = Date.now();
     saveBigTicketItems();
     renderBigTicketItems();
@@ -2679,7 +2693,7 @@
     const text = htmlToPlainText(html);
     if (!dateRaw || !title || !text) return false;
     const now = Date.now();
-    generalNotes.items.push({ id: `gn-${now}-${Math.random().toString(16).slice(2)}`, date: dateRaw, title, html, html_inline: richHtmlToInlineHtml(html), text, createdAt: now, updatedAt: now, whiteboardDataUrl: null, whiteboardMeta: null });
+    generalNotes.items.push({ id: `gn-${now}-${Math.random().toString(16).slice(2)}`, date: dateRaw, title, html, html_inline: richHtmlToInlineHtml(html), text, createdAt: now, updatedAt: now, whiteboardDataUrl: null, whiteboardMeta: null, whiteboardImages: [] });
     saveGeneralNotes();
     renderGeneralNotes();
     activeGeneralNoteBigEditDraft = null;
@@ -2694,7 +2708,7 @@
     const item = getGeneralNoteById(id);
     if (!item) return;
     activeGeneralNoteBigEditId = id;
-    activeGeneralNoteBigEditDraft = { title: item.title, date: item.date, html: item.html, whiteboardDataUrl: item.whiteboardDataUrl, whiteboardMeta: item.whiteboardMeta };
+    activeGeneralNoteBigEditDraft = { title: item.title, date: item.date, html: item.html, whiteboardDataUrl: item.whiteboardDataUrl, whiteboardMeta: item.whiteboardMeta, whiteboardImages: cloneWhiteboardImages(item.whiteboardImages || []) };
     generalNoteBigEditTitleInput.value = privacyMode ? anonymizeText(item.title, 'Note', item.id) : item.title;
     generalNoteBigEditDateInput.value = item.date;
     generalNoteBigEditEditor.innerHTML = privacyMode ? anonymizeRichHtml(item.text, 'Note text', item.id) : item.html;
@@ -2705,9 +2719,9 @@
     setGeneralNoteEditMode('text');
     whiteboardState.undoStack = [];
     whiteboardState.touched = false;
-    whiteboardState.hasContent = Boolean(item.whiteboardDataUrl);
+    whiteboardState.hasContent = Boolean(item.whiteboardDataUrl) || Boolean(item.whiteboardImages?.length);
     resizeWhiteboardCanvas();
-    loadWhiteboardImage(item.whiteboardDataUrl);
+    loadWhiteboardImage(item.whiteboardDataUrl, { images: item.whiteboardImages || [] });
   }
 
   function closeGeneralNoteBigEdit() {
@@ -2716,7 +2730,7 @@
       generalNoteBigEditTitleInput.value = activeGeneralNoteBigEditDraft.title;
       generalNoteBigEditDateInput.value = activeGeneralNoteBigEditDraft.date;
       generalNoteBigEditEditor.innerHTML = activeGeneralNoteBigEditDraft.html;
-      loadWhiteboardImage(activeGeneralNoteBigEditDraft.whiteboardDataUrl || null);
+      loadWhiteboardImage(activeGeneralNoteBigEditDraft.whiteboardDataUrl || null, { images: activeGeneralNoteBigEditDraft.whiteboardImages || [] });
     }
     generalNoteBigEditTitleInput.disabled = false;
     generalNoteBigEditDateInput.disabled = false;
@@ -2742,6 +2756,7 @@
     item.html_inline = richHtmlToInlineHtml(html);
     if (whiteboardState.touched || whiteboardState.hasContent) {
       item.whiteboardDataUrl = whiteboardCanvas ? whiteboardCanvas.toDataURL('image/png') : item.whiteboardDataUrl;
+      item.whiteboardImages = cloneWhiteboardImages();
       item.whiteboardMeta = whiteboardCanvas ? { width: whiteboardCanvas.width, height: whiteboardCanvas.height, updatedAt: Date.now() } : item.whiteboardMeta;
     }
     item.updatedAt = Date.now();
@@ -2770,13 +2785,34 @@
     if (nextMode === 'whiteboard') {
       const item = getGeneralNoteById(activeGeneralNoteBigEditId);
       resizeWhiteboardCanvas();
-      loadWhiteboardImage(item?.whiteboardDataUrl || activeGeneralNoteBigEditDraft?.whiteboardDataUrl || null);
+      loadWhiteboardImage(item?.whiteboardDataUrl || activeGeneralNoteBigEditDraft?.whiteboardDataUrl || null, { images: item?.whiteboardImages || activeGeneralNoteBigEditDraft?.whiteboardImages || [] });
     }
+    updateWhiteboardImageActions();
   }
 
   function getWhiteboardCtx() {
     if (!whiteboardCanvas) return null;
     return whiteboardCanvas.getContext('2d');
+  }
+
+  function cloneWhiteboardImages(images = whiteboardState.images) {
+    return (Array.isArray(images) ? images : []).map((img) => ({ ...img }));
+  }
+
+  function whiteboardSnapshot() {
+    return {
+      baseDataUrl: whiteboardCanvas ? whiteboardCanvas.toDataURL('image/png') : null,
+      images: cloneWhiteboardImages(),
+    };
+  }
+
+  function applyWhiteboardSnapshot(snapshot) {
+    if (!whiteboardCanvas) return;
+    const baseDataUrl = snapshot?.baseDataUrl || null;
+    const images = Array.isArray(snapshot?.images) ? snapshot.images : [];
+    loadWhiteboardImage(baseDataUrl, { images });
+    whiteboardState.selectedImageId = null;
+    updateWhiteboardImageActions();
   }
 
   function fillWhiteboardBackground() {
@@ -2789,26 +2825,74 @@
     ctx.restore();
   }
 
-  function pushWhiteboardUndo() {
-    if (!whiteboardCanvas) return;
-    whiteboardState.undoStack.push(whiteboardCanvas.toDataURL('image/png'));
-    if (whiteboardState.undoStack.length > 30) whiteboardState.undoStack.shift();
-  }
-
-  function loadWhiteboardImage(dataUrl) {
+  function renderWhiteboardBase(baseDataUrl = null, onDone = null) {
     if (!whiteboardCanvas) return;
     const ctx = getWhiteboardCtx();
     fillWhiteboardBackground();
-    if (!dataUrl) {
-      whiteboardState.hasContent = false;
+    if (!baseDataUrl) {
+      if (typeof onDone === 'function') onDone();
       return;
     }
     const img = new Image();
     img.onload = () => {
       ctx.drawImage(img, 0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-      whiteboardState.hasContent = true;
+      if (typeof onDone === 'function') onDone();
     };
-    img.src = dataUrl;
+    img.src = baseDataUrl;
+  }
+
+  function renderWhiteboardImages() {
+    const ctx = getWhiteboardCtx();
+    if (!ctx) return;
+    whiteboardState.images.forEach((item) => {
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, item.x, item.y, item.w, item.h);
+        if (whiteboardState.selectedImageId === item.id) drawSelectionOutline(item);
+      };
+      img.src = item.dataUrl;
+    });
+  }
+
+  function redrawWhiteboard() {
+    const snapshot = whiteboardState.baseSnapshot;
+    renderWhiteboardBase(snapshot, () => renderWhiteboardImages());
+  }
+
+  function drawSelectionOutline(item) {
+    const ctx = getWhiteboardCtx();
+    if (!ctx || !item) return;
+    ctx.save();
+    ctx.strokeStyle = '#2563eb';
+    ctx.setLineDash([8, 5]);
+    ctx.lineWidth = 2;
+    ctx.strokeRect(item.x, item.y, item.w, item.h);
+    ctx.restore();
+  }
+
+  function updateWhiteboardImageActions() {
+    if (!whiteboardImageActions) return;
+    const hasSelected = Boolean(whiteboardState.selectedImageId);
+    whiteboardImageActions.hidden = !(whiteboardState.tool === 'select' || hasSelected);
+    if (whiteboardImageDeleteBtn) whiteboardImageDeleteBtn.disabled = !hasSelected;
+    if (whiteboardImageForwardBtn) whiteboardImageForwardBtn.disabled = !hasSelected;
+    if (whiteboardImageBackwardBtn) whiteboardImageBackwardBtn.disabled = !hasSelected;
+  }
+
+  function pushWhiteboardUndo() {
+    if (!whiteboardCanvas) return;
+    whiteboardState.undoStack.push(JSON.stringify(whiteboardSnapshot()));
+    if (whiteboardState.undoStack.length > 30) whiteboardState.undoStack.shift();
+  }
+
+  function loadWhiteboardImage(dataUrl, options = {}) {
+    if (!whiteboardCanvas) return;
+    whiteboardState.baseSnapshot = dataUrl || null;
+    whiteboardState.images = cloneWhiteboardImages(options.images || []);
+    whiteboardState.hasContent = Boolean(dataUrl) || whiteboardState.images.length > 0;
+    whiteboardState.selectedImageId = null;
+    redrawWhiteboard();
+    updateWhiteboardImageActions();
   }
 
   function resizeWhiteboardCanvas() {
@@ -2817,17 +2901,11 @@
     const cssWidth = Math.max(300, Math.floor(rect.width || generalNoteWhiteboardPanel.clientWidth || 600));
     const cssHeight = Math.max(240, Math.floor(rect.height || (generalNoteWhiteboardPanel.clientHeight - 10) || 320));
     const dpr = window.devicePixelRatio || 1;
-    const prev = whiteboardCanvas.toDataURL('image/png');
     whiteboardCanvas.width = Math.floor(cssWidth * dpr);
     whiteboardCanvas.height = Math.floor(cssHeight * dpr);
     const ctx = getWhiteboardCtx();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    fillWhiteboardBackground();
-    if (prev) {
-      const img = new Image();
-      img.onload = () => ctx.drawImage(img, 0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-      img.src = prev;
-    }
+    redrawWhiteboard();
   }
 
   function whiteboardPoint(event) {
@@ -2837,18 +2915,17 @@
     return { x: (event.clientX - rect.left) * scaleX, y: (event.clientY - rect.top) * scaleY };
   }
 
+  function hitTestWhiteboardImage(point) {
+    for (let i = whiteboardState.images.length - 1; i >= 0; i -= 1) {
+      const item = whiteboardState.images[i];
+      if (point.x >= item.x && point.x <= item.x + item.w && point.y >= item.y && point.y <= item.y + item.h) return item;
+    }
+    return null;
+  }
+
   function drawShapePreview(start, end) {
-    const ctx = getWhiteboardCtx();
-    if (!ctx) return;
-    const snapshot = whiteboardState.baseSnapshot;
-    if (!snapshot) return;
-    const img = new Image();
-    img.onload = () => {
-      fillWhiteboardBackground();
-      ctx.drawImage(img, 0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-      drawShape(start, end);
-    };
-    img.src = snapshot;
+    redrawWhiteboard();
+    drawShape(start, end);
   }
 
   function drawShape(start, end) {
@@ -2873,6 +2950,37 @@
       ctx.ellipse(cx, cy, Math.abs(rx), Math.abs(ry), 0, 0, Math.PI * 2);
       ctx.stroke();
     }
+  }
+
+  function loadImageFileToWhiteboard(file, preferredPoint = null) {
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = typeof reader.result === 'string' ? reader.result : null;
+      if (!dataUrl) return;
+      const img = new Image();
+      img.onload = () => {
+        if (!whiteboardCanvas) return;
+        const maxW = whiteboardCanvas.width * 0.7;
+        const maxH = whiteboardCanvas.height * 0.7;
+        const ratio = Math.min(maxW / img.width, maxH / img.height, 1);
+        const w = img.width * ratio;
+        const h = img.height * ratio;
+        const point = preferredPoint || whiteboardState.lastPointerPosition;
+        const x = point ? point.x : (whiteboardCanvas.width - w) / 2;
+        const y = point ? point.y : (whiteboardCanvas.height - h) / 2;
+        pushWhiteboardUndo();
+        const item = { id: `wbi-${Date.now()}-${Math.random().toString(16).slice(2)}`, x, y, w, h, dataUrl };
+        whiteboardState.images.push(item);
+        whiteboardState.selectedImageId = item.id;
+        whiteboardState.touched = true;
+        whiteboardState.hasContent = true;
+        redrawWhiteboard();
+        updateWhiteboardImageActions();
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
   }
 
 
@@ -3954,7 +4062,10 @@
     if ((btn.dataset.whiteboardTool || 'pen') === whiteboardState.tool) btn.classList.add('active');
     btn.addEventListener('click', () => {
       whiteboardState.tool = btn.dataset.whiteboardTool || 'pen';
+      if (whiteboardState.tool !== 'select') whiteboardState.selectedImageId = null;
       document.querySelectorAll('.whiteboard-tool-btn[data-whiteboard-tool]').forEach((n) => n.classList.toggle('active', n === btn));
+      redrawWhiteboard();
+      updateWhiteboardImageActions();
     });
   });
 
@@ -3962,17 +4073,94 @@
     whiteboardUndoBtn.addEventListener('click', () => {
       if (!whiteboardCanvas || !whiteboardState.undoStack.length) return;
       const previous = whiteboardState.undoStack.pop();
-      loadWhiteboardImage(previous || null);
+      try {
+        applyWhiteboardSnapshot(JSON.parse(previous));
+      } catch (_error) {
+        loadWhiteboardImage(previous || null, { images: [] });
+      }
       whiteboardState.touched = true;
+      whiteboardState.hasContent = Boolean(whiteboardState.baseSnapshot) || whiteboardState.images.length > 0;
     });
   }
 
   if (whiteboardClearBtn) {
     whiteboardClearBtn.addEventListener('click', () => {
       pushWhiteboardUndo();
+      whiteboardState.baseSnapshot = null;
+      whiteboardState.images = [];
+      whiteboardState.selectedImageId = null;
       fillWhiteboardBackground();
       whiteboardState.hasContent = false;
       whiteboardState.touched = true;
+      updateWhiteboardImageActions();
+    });
+  }
+
+  if (whiteboardImageDeleteBtn) {
+    whiteboardImageDeleteBtn.addEventListener('click', () => {
+      if (!whiteboardState.selectedImageId) return;
+      pushWhiteboardUndo();
+      whiteboardState.images = whiteboardState.images.filter((item) => item.id !== whiteboardState.selectedImageId);
+      whiteboardState.selectedImageId = null;
+      whiteboardState.touched = true;
+      whiteboardState.hasContent = Boolean(whiteboardState.baseSnapshot) || whiteboardState.images.length > 0;
+      redrawWhiteboard();
+      updateWhiteboardImageActions();
+    });
+  }
+
+  if (whiteboardImageForwardBtn) {
+    whiteboardImageForwardBtn.addEventListener('click', () => {
+      const selected = whiteboardState.selectedImageId;
+      if (!selected) return;
+      const idx = whiteboardState.images.findIndex((img) => img.id === selected);
+      if (idx < 0 || idx === whiteboardState.images.length - 1) return;
+      pushWhiteboardUndo();
+      const [img] = whiteboardState.images.splice(idx, 1);
+      whiteboardState.images.splice(idx + 1, 0, img);
+      whiteboardState.touched = true;
+      redrawWhiteboard();
+    });
+  }
+
+  if (whiteboardImageBackwardBtn) {
+    whiteboardImageBackwardBtn.addEventListener('click', () => {
+      const selected = whiteboardState.selectedImageId;
+      if (!selected) return;
+      const idx = whiteboardState.images.findIndex((img) => img.id === selected);
+      if (idx <= 0) return;
+      pushWhiteboardUndo();
+      const [img] = whiteboardState.images.splice(idx, 1);
+      whiteboardState.images.splice(idx - 1, 0, img);
+      whiteboardState.touched = true;
+      redrawWhiteboard();
+    });
+  }
+
+  document.addEventListener('paste', (event) => {
+    if (generalNoteBigEditModal.hidden || whiteboardState.mode !== 'whiteboard') return;
+    const items = Array.from(event.clipboardData?.items || []);
+    const imageItem = items.find((item) => item.type === 'image/png' || item.type === 'image/jpeg');
+    if (!imageItem) return;
+    const file = imageItem.getAsFile();
+    if (!file) return;
+    event.preventDefault();
+    loadImageFileToWhiteboard(file);
+  });
+
+  if (whiteboardCanvasWrap) {
+    whiteboardCanvasWrap.addEventListener('dragover', (event) => {
+      if (generalNoteBigEditModal.hidden || whiteboardState.mode !== 'whiteboard') return;
+      event.preventDefault();
+    });
+    whiteboardCanvasWrap.addEventListener('drop', (event) => {
+      if (generalNoteBigEditModal.hidden || whiteboardState.mode !== 'whiteboard') return;
+      const files = Array.from(event.dataTransfer?.files || []).filter((file) => file.type.startsWith('image/'));
+      if (!files.length) return;
+      event.preventDefault();
+      const point = whiteboardPoint(event);
+      whiteboardState.lastPointerPosition = point;
+      loadImageFileToWhiteboard(files[0], point);
     });
   }
 
@@ -3980,6 +4168,20 @@
     const onPointerDown = (event) => {
       if (event.pointerType === 'mouse' && event.button !== 0) return;
       const point = whiteboardPoint(event);
+      whiteboardState.lastPointerPosition = point;
+      if (whiteboardState.tool === 'select') {
+        const hit = hitTestWhiteboardImage(point);
+        whiteboardState.selectedImageId = hit?.id || null;
+        if (hit) {
+          whiteboardState.draggingImageId = hit.id;
+          whiteboardState.dragOffset = { x: point.x - hit.x, y: point.y - hit.y };
+          pushWhiteboardUndo();
+          whiteboardCanvas.setPointerCapture(event.pointerId);
+        }
+        redrawWhiteboard();
+        updateWhiteboardImageActions();
+        return;
+      }
       if (whiteboardState.tool === 'text') {
         const text = window.prompt('Enter text');
         if (!text) return;
@@ -3993,6 +4195,8 @@
         ctx.textBaseline = 'top';
         ctx.fillText(text, point.x, point.y);
         ctx.restore();
+        whiteboardState.baseSnapshot = whiteboardCanvas.toDataURL('image/png');
+        redrawWhiteboard();
         whiteboardState.touched = true;
         whiteboardState.hasContent = true;
         return;
@@ -4001,6 +4205,7 @@
       event.preventDefault();
       pushWhiteboardUndo();
       whiteboardState.baseSnapshot = whiteboardCanvas.toDataURL('image/png');
+      renderWhiteboardBase(whiteboardState.baseSnapshot);
       whiteboardState.drawing = true;
       whiteboardState.start = point;
       const ctx = getWhiteboardCtx();
@@ -4011,8 +4216,17 @@
       }
     };
     const onPointerMove = (event) => {
-      if (!whiteboardState.drawing) return;
       const point = whiteboardPoint(event);
+      whiteboardState.lastPointerPosition = point;
+      if (whiteboardState.tool === 'select' && whiteboardState.draggingImageId) {
+        const image = whiteboardState.images.find((item) => item.id === whiteboardState.draggingImageId);
+        if (!image) return;
+        image.x = point.x - whiteboardState.dragOffset.x;
+        image.y = point.y - whiteboardState.dragOffset.y;
+        redrawWhiteboard();
+        return;
+      }
+      if (!whiteboardState.drawing) return;
       const ctx = getWhiteboardCtx();
       if (!ctx) return;
       if (whiteboardState.tool === 'pen' || whiteboardState.tool === 'eraser') {
@@ -4029,6 +4243,14 @@
       }
     };
     const onPointerUp = (event) => {
+      if (whiteboardState.tool === 'select' && whiteboardState.draggingImageId) {
+        if (whiteboardCanvas.hasPointerCapture(event.pointerId)) whiteboardCanvas.releasePointerCapture(event.pointerId);
+        whiteboardState.draggingImageId = null;
+        whiteboardState.touched = true;
+        whiteboardState.hasContent = Boolean(whiteboardState.baseSnapshot) || whiteboardState.images.length > 0;
+        updateWhiteboardImageActions();
+        return;
+      }
       if (!whiteboardState.drawing) return;
       if (whiteboardState.tool === 'line' || whiteboardState.tool === 'rect' || whiteboardState.tool === 'circle') {
         drawShape(whiteboardState.start, whiteboardPoint(event));
@@ -4036,8 +4258,9 @@
       if (whiteboardCanvas.hasPointerCapture(event.pointerId)) {
         whiteboardCanvas.releasePointerCapture(event.pointerId);
       }
+      whiteboardState.baseSnapshot = whiteboardCanvas.toDataURL('image/png');
+      redrawWhiteboard();
       whiteboardState.drawing = false;
-      whiteboardState.baseSnapshot = null;
       whiteboardState.touched = true;
       whiteboardState.hasContent = true;
     };
@@ -4046,6 +4269,7 @@
     whiteboardCanvas.addEventListener('pointerup', onPointerUp);
     whiteboardCanvas.addEventListener('pointercancel', onPointerUp);
   }
+
 
   window.addEventListener('resize', () => {
     resizeWhiteboardCanvas();
