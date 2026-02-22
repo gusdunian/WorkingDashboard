@@ -204,6 +204,10 @@
   const schedulingPersonFilterSelect = document.getElementById('scheduling-person-filter');
   const generalTagFilterSelect = document.getElementById('general-tag-filter');
   const schedulingTagFilterSelect = document.getElementById('scheduling-tag-filter');
+  const meetingPersonFilterSelect = document.getElementById('meeting-person-filter');
+  const meetingTagFilterSelect = document.getElementById('meeting-tag-filter');
+  const generalNotesPersonFilterSelect = document.getElementById('general-notes-person-filter');
+  const generalNotesTagFilterSelect = document.getElementById('general-notes-tag-filter');
   const generalPersonCountEl = document.getElementById('general-person-filter-count');
   const schedulingPersonCountEl = document.getElementById('scheduling-person-filter-count');
 
@@ -440,16 +444,12 @@
     localStorage.removeItem(LOCAL_DIRTY_SINCE_KEY);
   }
 
-  function extractPersonTagsFromAction(action) {
-    const sourceText = (typeof action?.text === 'string' && action.text.trim())
-      ? action.text
-      : htmlToPlainText(action?.html || action?.html_inline || '');
+  function extractTags(sourceText, regex) {
     if (!sourceText) return [];
-
     const matches = new Map();
-    const regex = new RegExp(PERSON_TAG_REGEX);
+    const matcher = new RegExp(regex);
     let match;
-    while ((match = regex.exec(sourceText)) !== null) {
+    while ((match = matcher.exec(sourceText)) !== null) {
       const tag = match[2];
       const key = tag.toLowerCase();
       if (!matches.has(key)) matches.set(key, tag);
@@ -457,12 +457,60 @@
     return Array.from(matches.values());
   }
 
+  function extractPersonTagsFromAction(action) {
+    const sourceText = (typeof action?.text === 'string' && action.text.trim())
+      ? action.text
+      : htmlToPlainText(action?.html || action?.html_inline || '');
+    return extractTags(sourceText, PERSON_TAG_REGEX);
+  }
+
+  function extractHashTagsFromAction(action) {
+    const sourceText = (typeof action?.text === 'string' && action.text.trim())
+      ? action.text
+      : htmlToPlainText(action?.html || action?.html_inline || '');
+    return extractTags(sourceText, HASH_TAG_REGEX);
+  }
+
+  function extractPersonTagsFromMeeting(item) {
+    const notesSource = (typeof item?.notesText === 'string' && item.notesText.trim())
+      ? item.notesText
+      : htmlToPlainText(item?.notesHtml || '');
+    return extractTags(`${item?.title || ''} ${notesSource}`.trim(), PERSON_TAG_REGEX);
+  }
+
+  function extractHashTagsFromMeeting(item) {
+    const notesSource = (typeof item?.notesText === 'string' && item.notesText.trim())
+      ? item.notesText
+      : htmlToPlainText(item?.notesHtml || '');
+    return extractTags(`${item?.title || ''} ${notesSource}`.trim(), HASH_TAG_REGEX);
+  }
+
+  function extractPersonTagsFromGeneralNote(item) {
+    const notesSource = (typeof item?.text === 'string' && item.text.trim())
+      ? item.text
+      : htmlToPlainText(item?.html || '');
+    return extractTags(`${item?.title || ''} ${notesSource}`.trim(), PERSON_TAG_REGEX);
+  }
+
+  function extractHashTagsFromGeneralNote(item) {
+    const notesSource = (typeof item?.text === 'string' && item.text.trim())
+      ? item.text
+      : htmlToPlainText(item?.html || '');
+    return extractTags(`${item?.title || ''} ${notesSource}`.trim(), HASH_TAG_REGEX);
+  }
+
   function collectPersonTags() {
     const unique = new Map();
-    [lists.general.actions, lists.scheduling.actions, bigTicket.items].forEach((items) => {
+    [
+      [lists.general.actions, extractPersonTagsFromAction],
+      [lists.scheduling.actions, extractPersonTagsFromAction],
+      [bigTicket.items, extractPersonTagsFromAction],
+      [meeting.items, extractPersonTagsFromMeeting],
+      [generalNotes.items, extractPersonTagsFromGeneralNote],
+    ].forEach(([items, extractor]) => {
       items.forEach((item) => {
         if (item?.archived) return;
-        extractPersonTagsFromAction(item).forEach((tag) => {
+        extractor(item).forEach((tag) => {
           const key = tag.toLowerCase();
           if (!unique.has(key)) unique.set(key, tag);
         });
@@ -472,29 +520,18 @@
     return Array.from(unique.values()).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
   }
 
-  function extractHashTagsFromAction(action) {
-    const sourceText = (typeof action?.text === 'string' && action.text.trim())
-      ? action.text
-      : htmlToPlainText(action?.html || action?.html_inline || '');
-    if (!sourceText) return [];
-
-    const matches = new Map();
-    const regex = new RegExp(HASH_TAG_REGEX);
-    let match;
-    while ((match = regex.exec(sourceText)) !== null) {
-      const tag = match[2];
-      const key = tag.toLowerCase();
-      if (!matches.has(key)) matches.set(key, tag);
-    }
-    return Array.from(matches.values());
-  }
-
   function collectHashTags() {
     const unique = new Map();
-    [lists.general.actions, lists.scheduling.actions, bigTicket.items].forEach((items) => {
+    [
+      [lists.general.actions, extractHashTagsFromAction],
+      [lists.scheduling.actions, extractHashTagsFromAction],
+      [bigTicket.items, extractHashTagsFromAction],
+      [meeting.items, extractHashTagsFromMeeting],
+      [generalNotes.items, extractHashTagsFromGeneralNote],
+    ].forEach(([items, extractor]) => {
       items.forEach((item) => {
         if (item?.archived) return;
-        extractHashTagsFromAction(item).forEach((tag) => {
+        extractor(item).forEach((tag) => {
           const key = tag.toLowerCase();
           if (!unique.has(key)) unique.set(key, tag);
         });
@@ -1520,7 +1557,7 @@
     const effectivePerson = validPerson ? selectedPerson : 'All';
     const effectiveTag = validTag ? selectedTag : 'All';
 
-    [generalPersonFilterSelect, schedulingPersonFilterSelect].forEach((selectEl) => {
+    [generalPersonFilterSelect, schedulingPersonFilterSelect, meetingPersonFilterSelect, generalNotesPersonFilterSelect].forEach((selectEl) => {
       if (!selectEl) return;
       selectEl.innerHTML = '';
       const allOption = document.createElement('option');
@@ -1537,7 +1574,7 @@
       selectEl.value = effectivePerson === 'All' ? 'All' : (selected || 'All');
     });
 
-    [generalTagFilterSelect, schedulingTagFilterSelect].forEach((selectEl) => {
+    [generalTagFilterSelect, schedulingTagFilterSelect, meetingTagFilterSelect, generalNotesTagFilterSelect].forEach((selectEl) => {
       if (!selectEl) return;
       selectEl.innerHTML = '';
       const allOption = document.createElement('option');
@@ -1714,31 +1751,46 @@
     if (list.key === SCHEDULING_STORAGE_KEY && schedulingPersonCountEl) schedulingPersonCountEl.textContent = countLabel;
   }
 
-  function getSortedMeetings() {
-    return [...meeting.items].sort((a, b) => new Date(b.datetime) - new Date(a.datetime));
+  function meetingMatchesFilters(item) {
+    const selectedPerson = getSelectedPersonFilter();
+    const selectedTag = getSelectedTagFilter();
+    const personMatches = selectedPerson === 'All'
+      || extractPersonTagsFromMeeting(item).some((tag) => tag.toLowerCase() === selectedPerson.toLowerCase());
+    const tagMatches = selectedTag === 'All'
+      || extractHashTagsFromMeeting(item).some((tag) => tag.toLowerCase() === selectedTag.toLowerCase());
+    return personMatches && tagMatches;
   }
 
-  function getMeetingGroups() {
+  function getFilteredMeetings() {
+    const selectedPerson = getSelectedPersonFilter();
+    const selectedTag = getSelectedTagFilter();
+    if (selectedPerson === 'All' && selectedTag === 'All') return [...meeting.items];
+    return meeting.items.filter((item) => meetingMatchesFilters(item));
+  }
+
+  function getMeetingGroups(items = meeting.items) {
     const byMonth = new Map();
-    getSortedMeetings().forEach((item) => {
-      const date = new Date(item.datetime);
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      if (!byMonth.has(monthKey)) {
-        byMonth.set(monthKey, {
-          monthKey,
-          monthLabel: date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
-          monthStart: new Date(date.getFullYear(), date.getMonth(), 1).getTime(),
-          weeks: new Map(),
-        });
-      }
-      const month = byMonth.get(monthKey);
-      const monday = getWeekCommencingMonday(date);
-      const weekKey = dateToDateValue(monday);
-      if (!month.weeks.has(weekKey)) {
-        month.weeks.set(weekKey, { weekKey, weekStart: monday.getTime(), weekLabel: `W/C ${formatLocalDate(monday)}`, meetings: [] });
-      }
-      month.weeks.get(weekKey).meetings.push(item);
-    });
+    [...items]
+      .sort((a, b) => new Date(b.datetime) - new Date(a.datetime))
+      .forEach((item) => {
+        const date = new Date(item.datetime);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        if (!byMonth.has(monthKey)) {
+          byMonth.set(monthKey, {
+            monthKey,
+            monthLabel: date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
+            monthStart: new Date(date.getFullYear(), date.getMonth(), 1).getTime(),
+            weeks: new Map(),
+          });
+        }
+        const month = byMonth.get(monthKey);
+        const monday = getWeekCommencingMonday(date);
+        const weekKey = dateToDateValue(monday);
+        if (!month.weeks.has(weekKey)) {
+          month.weeks.set(weekKey, { weekKey, weekStart: monday.getTime(), weekLabel: `W/C ${formatLocalDate(monday)}`, meetings: [] });
+        }
+        month.weeks.get(weekKey).meetings.push(item);
+      });
 
     return [...byMonth.values()]
       .sort((a, b) => b.monthStart - a.monthStart)
@@ -1893,15 +1945,20 @@
 
   function renderMeetings() {
     meeting.listEl.innerHTML = '';
-    if (!meeting.items.length) {
+    const filteredMeetings = getFilteredMeetings();
+    const selectedPerson = getSelectedPersonFilter();
+    const selectedTag = getSelectedTagFilter();
+    if (!filteredMeetings.length) {
       const empty = document.createElement('p');
       empty.className = 'meeting-empty';
-      empty.textContent = 'No meeting notes yet. Add one to get started.';
+      empty.textContent = (selectedPerson !== 'All' || selectedTag !== 'All')
+        ? 'No meetings match filter.'
+        : 'No meeting notes yet. Add one to get started.';
       meeting.listEl.appendChild(empty);
       return;
     }
 
-    getMeetingGroups().forEach((month) => {
+    getMeetingGroups(filteredMeetings).forEach((month) => {
       const monthSection = document.createElement('section');
       monthSection.className = 'meeting-month-group';
 
@@ -2158,8 +2215,8 @@
   }
 
 
-  function getGeneralNoteGroups() {
-    const sorted = [...generalNotes.items].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime() || b.createdAt - a.createdAt);
+  function getGeneralNoteGroups(items = generalNotes.items) {
+    const sorted = [...items].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime() || b.createdAt - a.createdAt);
     const map = new Map();
     sorted.forEach((note) => {
       const d = new Date(`${note.date}T00:00:00`);
@@ -2172,17 +2229,40 @@
     return Array.from(map.values());
   }
 
+
+  function generalNoteMatchesFilters(note) {
+    const selectedPerson = getSelectedPersonFilter();
+    const selectedTag = getSelectedTagFilter();
+    const personMatches = selectedPerson === 'All'
+      || extractPersonTagsFromGeneralNote(note).some((tag) => tag.toLowerCase() === selectedPerson.toLowerCase());
+    const tagMatches = selectedTag === 'All'
+      || extractHashTagsFromGeneralNote(note).some((tag) => tag.toLowerCase() === selectedTag.toLowerCase());
+    return personMatches && tagMatches;
+  }
+
+  function getFilteredGeneralNotes() {
+    const selectedPerson = getSelectedPersonFilter();
+    const selectedTag = getSelectedTagFilter();
+    if (selectedPerson === 'All' && selectedTag === 'All') return [...generalNotes.items];
+    return generalNotes.items.filter((note) => generalNoteMatchesFilters(note));
+  }
+
   function renderGeneralNotes() {
     generalNotes.listEl.innerHTML = '';
-    if (!generalNotes.items.length) {
+    const filteredNotes = getFilteredGeneralNotes();
+    const selectedPerson = getSelectedPersonFilter();
+    const selectedTag = getSelectedTagFilter();
+    if (!filteredNotes.length) {
       const empty = document.createElement('p');
       empty.className = 'meeting-empty';
-      empty.textContent = 'No general notes yet.';
+      empty.textContent = (selectedPerson !== 'All' || selectedTag !== 'All')
+        ? 'No general notes match filter.'
+        : 'No general notes yet.';
       generalNotes.listEl.appendChild(empty);
       return;
     }
 
-    getGeneralNoteGroups().forEach((group) => {
+    getGeneralNoteGroups(filteredNotes).forEach((group) => {
       const section = document.createElement('section');
       const headerRow = document.createElement('div');
       headerRow.className = 'general-note-month-row';
@@ -3475,14 +3555,14 @@
     if (document.visibilityState === 'visible') scheduleFocusRefresh();
   });
 
-  [generalPersonFilterSelect, schedulingPersonFilterSelect].forEach((selectEl) => {
+  [generalPersonFilterSelect, schedulingPersonFilterSelect, meetingPersonFilterSelect, generalNotesPersonFilterSelect].forEach((selectEl) => {
     if (!selectEl) return;
     selectEl.addEventListener('change', (event) => {
       setPersonFilter(event.target.value || 'All');
     });
   });
 
-  [generalTagFilterSelect, schedulingTagFilterSelect].forEach((selectEl) => {
+  [generalTagFilterSelect, schedulingTagFilterSelect, meetingTagFilterSelect, generalNotesTagFilterSelect].forEach((selectEl) => {
     if (!selectEl) return;
     selectEl.addEventListener('change', (event) => {
       setTagFilter(event.target.value || 'All');
