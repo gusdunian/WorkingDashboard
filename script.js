@@ -286,6 +286,7 @@
 
   const uiState = {
     collapsedCards: { ...collapsedCardsDefault },
+    cardLayout: [],
     collapsedGeneralNotesMonths: {},
     theme: { presetName: 'Office Blue', vars: { ...defaultTheme } },
     dashboardTitle: DEFAULT_DASHBOARD_TITLE,
@@ -303,6 +304,7 @@
     generalNotes: [],
     ui: {
       collapsedCards: { ...collapsedCardsDefault },
+      cardLayout: [],
       collapsedGeneralNotesMonths: {},
       theme: { presetName: 'Office Blue', vars: { ...defaultTheme } },
       dashboardTitle: DEFAULT_DASHBOARD_TITLE,
@@ -1055,6 +1057,7 @@
       ...collapsedCardsDefault,
       ...(parsed?.collapsedCards && typeof parsed.collapsedCards === 'object' ? parsed.collapsedCards : {}),
     };
+    uiState.cardLayout = Array.isArray(parsed?.cardLayout) ? parsed.cardLayout : [];
     uiState.collapsedGeneralNotesMonths = parsed?.collapsedGeneralNotesMonths && typeof parsed.collapsedGeneralNotesMonths === 'object'
       ? parsed.collapsedGeneralNotesMonths
       : {};
@@ -1228,6 +1231,7 @@
         ...collapsedCardsDefault,
         ...(baseState.ui.collapsedCards && typeof baseState.ui.collapsedCards === 'object' ? baseState.ui.collapsedCards : {}),
       },
+      cardLayout: Array.isArray(baseState.ui.cardLayout) ? baseState.ui.cardLayout : [],
       collapsedGeneralNotesMonths: baseState.ui.collapsedGeneralNotesMonths && typeof baseState.ui.collapsedGeneralNotesMonths === 'object' ? baseState.ui.collapsedGeneralNotesMonths : {},
       theme: normalizeThemeState(baseState.ui.theme),
       dashboardTitle: typeof baseState.ui.dashboardTitle === 'string' && baseState.ui.dashboardTitle.trim()
@@ -1283,6 +1287,7 @@
     appState.generalNotes = generalNotes.items;
     appState.ui = {
       collapsedCards: uiState.collapsedCards,
+      cardLayout: uiState.cardLayout,
       collapsedGeneralNotesMonths: uiState.collapsedGeneralNotesMonths,
       theme: uiState.theme,
       dashboardTitle: uiState.dashboardTitle,
@@ -2256,6 +2261,87 @@
     });
   }
 
+  function getCurrentCardLayout() {
+    if (!columnsSection) return [];
+    return Array.from(columnsSection.querySelectorAll('.column-stack'))
+      .map((stack) => Array.from(stack.querySelectorAll('.card[data-card-id]')).map((card) => card.dataset.cardId).filter(Boolean));
+  }
+
+  function saveCardLayout() {
+    uiState.cardLayout = getCurrentCardLayout();
+    saveUiState();
+  }
+
+  function applyCardLayout(layout) {
+    if (!columnsSection || !Array.isArray(layout) || !layout.length) return;
+    const stacks = Array.from(columnsSection.querySelectorAll('.column-stack'));
+    const cardsById = new Map(Array.from(columnsSection.querySelectorAll('.card[data-card-id]')).map((card) => [card.dataset.cardId, card]));
+    layout.forEach((stackLayout, stackIndex) => {
+      const stack = stacks[stackIndex];
+      if (!stack || !Array.isArray(stackLayout)) return;
+      stackLayout.forEach((cardId) => {
+        const card = cardsById.get(cardId);
+        if (card && card.parentElement !== stack) stack.appendChild(card);
+      });
+    });
+  }
+
+  function updateCardMoveControlState() {
+    if (!columnsSection) return;
+    const stacks = Array.from(columnsSection.querySelectorAll('.column-stack'));
+    const lastStackIndex = stacks.length - 1;
+    stacks.forEach((stack, stackIndex) => {
+      const cards = Array.from(stack.querySelectorAll('.card[data-card-id]'));
+      const lastCardIndex = cards.length - 1;
+      cards.forEach((card, cardIndex) => {
+        card.querySelectorAll('[data-card-move]').forEach((btn) => {
+          const direction = btn.dataset.direction;
+          const disabled = (direction === 'left' && stackIndex === 0)
+            || (direction === 'right' && stackIndex === lastStackIndex)
+            || (direction === 'up' && cardIndex === 0)
+            || (direction === 'down' && cardIndex === lastCardIndex);
+          btn.disabled = disabled;
+          btn.hidden = disabled;
+        });
+      });
+    });
+  }
+
+  function moveCard(cardId, direction) {
+    if (!columnsSection || !cardId) return;
+    const card = columnsSection.querySelector(`.card[data-card-id="${CSS.escape(cardId)}"]`);
+    if (!card) return;
+    const currentStack = card.closest('.column-stack');
+    if (!currentStack) return;
+    const stacks = Array.from(columnsSection.querySelectorAll('.column-stack'));
+    const stackIndex = stacks.indexOf(currentStack);
+    if (stackIndex < 0) return;
+
+    if (direction === 'up') {
+      const prev = card.previousElementSibling;
+      if (!prev) return;
+      currentStack.insertBefore(card, prev);
+    } else if (direction === 'down') {
+      const next = card.nextElementSibling;
+      if (!next) return;
+      currentStack.insertBefore(next, card);
+    } else if (direction === 'left' || direction === 'right') {
+      const targetIndex = direction === 'left' ? stackIndex - 1 : stackIndex + 1;
+      const targetStack = stacks[targetIndex];
+      if (!targetStack) return;
+      const sourceCards = Array.from(currentStack.querySelectorAll('.card[data-card-id]'));
+      const sourcePosition = sourceCards.indexOf(card);
+      const targetCards = Array.from(targetStack.querySelectorAll('.card[data-card-id]'));
+      const insertBeforeNode = targetCards[sourcePosition] || null;
+      targetStack.insertBefore(card, insertBeforeNode);
+    } else {
+      return;
+    }
+
+    saveCardLayout();
+    updateCardMoveControlState();
+  }
+
 
   function getOrdinalSuffix(day) {
     const remainder100 = day % 100;
@@ -2365,7 +2451,7 @@
       const upBtn = document.createElement('button');
       upBtn.type = 'button';
       upBtn.className = 'icon-btn';
-      upBtn.innerHTML = '<span class="reorder-arrow" aria-hidden="true">▲</span>';
+      upBtn.textContent = '▲';
       upBtn.disabled = index === 0;
       upBtn.setAttribute('aria-label', 'Move up');
       upBtn.addEventListener('click', (event) => {
@@ -2381,7 +2467,7 @@
       const downBtn = document.createElement('button');
       downBtn.type = 'button';
       downBtn.className = 'icon-btn';
-      downBtn.innerHTML = '<span class="reorder-arrow" aria-hidden="true">▼</span>';
+      downBtn.textContent = '▼';
       downBtn.disabled = index === bigTicket.items.length - 1;
       downBtn.setAttribute('aria-label', 'Move down');
       downBtn.addEventListener('click', (event) => {
@@ -2587,7 +2673,9 @@
     renderBigTicketItems();
     renderMeetings();
     renderGeneralNotes();
+    applyCardLayout(uiState.cardLayout);
     renderCardCollapseState();
+    updateCardMoveControlState();
     renderCollapseAllButton();
   }
 
@@ -3953,6 +4041,14 @@
     });
   }
 
+  function bindCardMoveEvents() {
+    document.querySelectorAll('[data-card-move]').forEach((button) => {
+      button.addEventListener('click', () => {
+        moveCard(button.dataset.cardMove, button.dataset.direction);
+      });
+    });
+  }
+
   function bindBigTicketEvents() {
     bigTicket.form.addEventListener('submit', (event) => {
       event.preventDefault();
@@ -4378,6 +4474,7 @@
   bindGeneralNotesEvents();
   applyTheme(defaultTheme);
   bindCardToggleEvents();
+  bindCardMoveEvents();
   bindCloudEvents();
   loadData();
   renderAll();

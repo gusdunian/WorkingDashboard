@@ -279,6 +279,11 @@ body { margin: 0; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe 
 .column-header { width: 100%; padding: 0.65rem 0.8rem 0.65rem 1rem; background: var(--card-header-bg); color: var(--card-header-fg); display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; }
 .column-header h2 { margin: 0; font-size: 1.1rem; display: inline-flex; align-items: center; gap: 0.5rem; }
 .header-icon { width: 1.6rem; height: 1.6rem; flex: 0 0 auto; stroke: currentColor; stroke-width: 1.9; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.column-header-actions { display: inline-flex; align-items: center; gap: 0.4rem; }
+.card-move-controls { display: inline-flex; align-items: center; gap: 0.2rem; }
+.card-move-btn { border: 1px solid rgba(255, 255, 255, 0.5); background: transparent; color: inherit; border-radius: 6px; width: 1.45rem; height: 1.45rem; font-size: 0.72rem; line-height: 1; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+.card-move-btn:hover, .card-move-btn:focus-visible { background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.75); }
+.card-move-btn[disabled] { opacity: 0.45; pointer-events: none; }
 .card-toggle { border: 0; background: transparent; color: inherit; font-size: 1.6rem; line-height: 1; width: 2rem; height: 2rem; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; }
 .card-toggle:hover, .card-toggle:focus-visible { background: rgba(255, 255, 255, 0.2); }
 .card-body[hidden] { display: none; }
@@ -349,8 +354,6 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, [contentedita
 .time-dependent-btn.active { border-color: #f59e0b; background: #fde68a; color: #111827; }
 .icon-btn { border: 1px solid var(--border); background: #fff; color: #475569; border-radius: 6px; padding: 0.2rem 0.35rem; font-size: 0.7rem; min-width: 1.45rem; height: 1.45rem; }
 .icon-btn:hover, .icon-btn:focus-visible { background: #f1f5f9; color: #0f172a; }
-.reorder-arrow { display: inline-block; font-size: 1.2rem; line-height: 1; color: #334155; transform: translateY(-0.02em); }
-.icon-btn:hover .reorder-arrow, .icon-btn:focus-visible .reorder-arrow { color: #0f172a; }
 .urgent-btn.active { border-color: var(--danger); color: #fff; background: var(--danger); }
 .delete-btn { border-color: #fecaca; color: #b91c1c; }
 .delete-btn:hover, .delete-btn:focus-visible { color: #fff; background: var(--danger-hover); border-color: var(--danger-hover); }
