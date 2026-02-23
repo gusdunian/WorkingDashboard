@@ -25,7 +25,7 @@
   const HASH_TAG_REGEX = /(^|[\s(>])(#[A-Za-z0-9_-]+)/g;
   const URGENCY_LOW = 3;
   const MOVE_HIGHLIGHT_MS = 5000;
-  const ACTION_SHORTCUT_TOKEN_REGEX = /%(\d{1,5})/g;
+  const ACTION_SHORTCUT_TOKEN_REGEX = /%(\d{1,5})%/g;
   const ACTION_SHORTCUT_TRIGGER_KEY_REGEX = /^[\s.,!?;:)}\]"']$/;
 
   const DEFAULT_DASHBOARD_TITLE = 'Angus’ Working Dashboard';
@@ -340,6 +340,10 @@
     lastCloudUpdatedAt: localStorage.getItem(CLOUD_LAST_UPDATED_AT_KEY) || null,
     lastSyncedAt: localStorage.getItem(CLOUD_LAST_SYNCED_AT_KEY) || null,
   };
+
+  let transientStatusTimer = null;
+  let lastTransientStatusMessage = '';
+  let lastTransientStatusShownAt = 0;
 
   const lists = {
     general: {
@@ -1384,6 +1388,27 @@
     if (normalizedType !== 'loading' && shouldToast && criticalToast) {
       showToast(nextMessage, normalizedType === 'warning' ? 'warning' : normalizedType);
     }
+  }
+
+  function showTransientStatus(message, type = 'info', durationMs = 3000) {
+    if (!message) return;
+    const now = Date.now();
+    if (message === lastTransientStatusMessage && now - lastTransientStatusShownAt < 1000) return;
+    lastTransientStatusMessage = message;
+    lastTransientStatusShownAt = now;
+    if (transientStatusTimer) {
+      window.clearTimeout(transientStatusTimer);
+      transientStatusTimer = null;
+    }
+    setStatus(message, type, { toast: false });
+    transientStatusTimer = window.setTimeout(() => {
+      transientStatusTimer = null;
+      if (cloud.signedInUser && !cloud.busy && !cloud.syncInFlight) {
+        updateCloudMeta();
+      } else {
+        setStatus('Ready', 'info', { toast: false });
+      }
+    }, durationMs);
   }
 
   function setLoading(isLoading, context = '') {
@@ -3434,20 +3459,21 @@
 
     const actionRef = findActionByNumber(tokenMatch.number);
     if (!actionRef) {
-      showToast(`Action ${tokenMatch.number} not found`, 'warning');
+      showTransientStatus(`Action ${tokenMatch.number} not found`, 'warning');
       return;
     }
 
     const removed = removeEditorTextRange(editorEl, tokenMatch.start, tokenMatch.end);
     if (!removed) return;
     prependActionReference(editorEl, actionRef);
+    showTransientStatus(`Action ${tokenMatch.number} inserted`, 'success');
   }
 
   function bindActionShortcutEditor(editorEl) {
     if (!editorEl) return;
     editorEl.addEventListener('keyup', (event) => {
       if (!event || event.isComposing) return;
-      if (event.key !== 'Enter' && !ACTION_SHORTCUT_TRIGGER_KEY_REGEX.test(event.key || '')) return;
+      if (event.key !== '%' && event.key !== 'Enter' && !ACTION_SHORTCUT_TRIGGER_KEY_REGEX.test(event.key || '')) return;
       processActionShortcutInEditor(editorEl, { useCaret: true });
     });
     editorEl.addEventListener('blur', () => {
