@@ -396,6 +396,10 @@
   let settingsThemeSavedSnapshot = null;
   let suppressThemePresetSync = false;
   let localDirtySince = Number(localStorage.getItem(LOCAL_DIRTY_SINCE_KEY)) || null;
+  let meetingUserTouchedDate = false;
+  let meetingUserTouchedTime = false;
+  let meetingAutoFilledDateTimeThisEntry = false;
+  let meetingTitleWasEmpty = true;
 
   let privacyMode = localStorage.getItem(PRIVACY_MODE_KEY) === '1';
   const whiteboardState = {
@@ -814,6 +818,11 @@
     const minutes = date.getMinutes();
     const validMinute = ALLOWED_MINUTES.includes(String(minutes).padStart(2, '0')) ? minutes : 0;
     return `${String(date.getHours()).padStart(2, '0')}:${String(validMinute).padStart(2, '0')}`;
+  }
+
+  function roundToNearestQuarterHour(date) {
+    const quarterMs = 15 * 60 * 1000;
+    return new Date(Math.round(date.getTime() / quarterMs) * quarterMs);
   }
 
 
@@ -2356,7 +2365,7 @@
       const upBtn = document.createElement('button');
       upBtn.type = 'button';
       upBtn.className = 'icon-btn';
-      upBtn.textContent = '▲';
+      upBtn.innerHTML = '<span class="reorder-arrow" aria-hidden="true">▲</span>';
       upBtn.disabled = index === 0;
       upBtn.setAttribute('aria-label', 'Move up');
       upBtn.addEventListener('click', (event) => {
@@ -2372,7 +2381,7 @@
       const downBtn = document.createElement('button');
       downBtn.type = 'button';
       downBtn.className = 'icon-btn';
-      downBtn.textContent = '▼';
+      downBtn.innerHTML = '<span class="reorder-arrow" aria-hidden="true">▼</span>';
       downBtn.disabled = index === bigTicket.items.length - 1;
       downBtn.setAttribute('aria-label', 'Move down');
       downBtn.addEventListener('click', (event) => {
@@ -3164,6 +3173,54 @@
     document.execCommand(command, false);
   }
 
+  function getSelectionListItemWithin(editorEl) {
+    if (!editorEl) return null;
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount) return null;
+    const anchorNode = selection.anchorNode;
+    if (!anchorNode) return null;
+    const anchorEl = anchorNode.nodeType === Node.ELEMENT_NODE ? anchorNode : anchorNode.parentElement;
+    if (!anchorEl) return null;
+    const listItem = anchorEl.closest('li');
+    return listItem && editorEl.contains(listItem) ? listItem : null;
+  }
+
+  function indentListItemFallback(listItem) {
+    const parentList = listItem?.parentElement;
+    const prevItem = listItem?.previousElementSibling;
+    if (!parentList || !prevItem) return true;
+    let nestedList = prevItem.lastElementChild;
+    if (!nestedList || !['UL', 'OL'].includes(nestedList.tagName)) {
+      nestedList = document.createElement(parentList.tagName === 'OL' ? 'ol' : 'ul');
+      prevItem.appendChild(nestedList);
+    }
+    nestedList.appendChild(listItem);
+    return true;
+  }
+
+  function outdentListItemFallback(listItem) {
+    const parentList = listItem?.parentElement;
+    if (!parentList || !['UL', 'OL'].includes(parentList.tagName)) return true;
+    const parentListItem = parentList.closest('li');
+    if (!parentListItem) return true;
+    parentListItem.insertAdjacentElement('afterend', listItem);
+    if (!parentList.children.length) parentList.remove();
+    return true;
+  }
+
+  function handleEditorTabIndent(event, editorEl) {
+    if (event.key !== 'Tab') return false;
+    const listItem = getSelectionListItemWithin(editorEl);
+    if (!listItem) return false;
+    event.preventDefault();
+    editorEl.focus();
+    if (typeof document.execCommand === 'function') {
+      document.execCommand(event.shiftKey ? 'outdent' : 'indent', false);
+      return true;
+    }
+    return event.shiftKey ? outdentListItemFallback(listItem) : indentListItemFallback(listItem);
+  }
+
   function getEditorCommandForShortcut(event) {
     if (!(event.ctrlKey || event.metaKey)) return null;
     const key = event.key.toLowerCase();
@@ -3177,11 +3234,32 @@
 
   function bindEditorShortcuts(editorEl) {
     editorEl.addEventListener('keydown', (event) => {
+      if (handleEditorTabIndent(event, editorEl)) return;
       const command = getEditorCommandForShortcut(event);
       if (!command) return;
       event.preventDefault();
       execEditorCommand(editorEl, command);
     });
+  }
+
+  function resetMeetingEntryAutofillState() {
+    meetingUserTouchedDate = false;
+    meetingUserTouchedTime = false;
+    meetingAutoFilledDateTimeThisEntry = false;
+    meetingTitleWasEmpty = !(meeting.titleInput?.value || '').trim();
+  }
+
+  function autofillMeetingDateTimeOnFirstTitleChar() {
+    const titleIsEmpty = !(meeting.titleInput?.value || '').trim();
+    if (meetingTitleWasEmpty && !titleIsEmpty && !meetingAutoFilledDateTimeThisEntry && !meetingUserTouchedDate && !meetingUserTouchedTime) {
+      const now = roundToNearestQuarterHour(new Date());
+      const roundedMinute = String(now.getMinutes()).padStart(2, '0');
+      meeting.dateInput.value = dateToDateValue(now);
+      meeting.hourInput.value = String(now.getHours()).padStart(2, '0');
+      meeting.minuteInput.value = ALLOWED_MINUTES.includes(roundedMinute) ? roundedMinute : '00';
+      meetingAutoFilledDateTimeThisEntry = true;
+    }
+    meetingTitleWasEmpty = titleIsEmpty;
   }
 
 
@@ -3828,6 +3906,22 @@
   }
 
   function bindMeetingEvents() {
+    resetMeetingEntryAutofillState();
+
+    const markDateTouched = () => {
+      meetingUserTouchedDate = true;
+    };
+    const markTimeTouched = () => {
+      meetingUserTouchedTime = true;
+    };
+    meeting.dateInput.addEventListener('input', markDateTouched);
+    meeting.dateInput.addEventListener('change', markDateTouched);
+    meeting.hourInput.addEventListener('input', markTimeTouched);
+    meeting.hourInput.addEventListener('change', markTimeTouched);
+    meeting.minuteInput.addEventListener('input', markTimeTouched);
+    meeting.minuteInput.addEventListener('change', markTimeTouched);
+    meeting.titleInput.addEventListener('input', autofillMeetingDateTimeOnFirstTitleChar);
+
     meeting.form.addEventListener('submit', (event) => {
       event.preventDefault();
       const added = addMeeting(meeting.titleInput.value, meeting.dateInput.value, buildTimeValue(meeting.hourInput.value, meeting.minuteInput.value), meeting.notesEditor.innerHTML);
@@ -3835,6 +3929,7 @@
       meeting.form.reset();
       meeting.minuteInput.value = '00';
       meeting.notesEditor.innerHTML = '';
+      resetMeetingEntryAutofillState();
       meeting.titleInput.focus();
     });
 

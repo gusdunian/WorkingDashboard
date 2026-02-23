@@ -349,6 +349,8 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, [contentedita
 .time-dependent-btn.active { border-color: #f59e0b; background: #fde68a; color: #111827; }
 .icon-btn { border: 1px solid var(--border); background: #fff; color: #475569; border-radius: 6px; padding: 0.2rem 0.35rem; font-size: 0.7rem; min-width: 1.45rem; height: 1.45rem; }
 .icon-btn:hover, .icon-btn:focus-visible { background: #f1f5f9; color: #0f172a; }
+.reorder-arrow { display: inline-block; font-size: 1.2rem; line-height: 1; color: #334155; transform: translateY(-0.02em); }
+.icon-btn:hover .reorder-arrow, .icon-btn:focus-visible .reorder-arrow { color: #0f172a; }
 .urgent-btn.active { border-color: var(--danger); color: #fff; background: var(--danger); }
 .delete-btn { border-color: #fecaca; color: #b91c1c; }
 .delete-btn:hover, .delete-btn:focus-visible { color: #fff; background: var(--danger-hover); border-color: var(--danger-hover); }
