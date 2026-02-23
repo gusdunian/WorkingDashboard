@@ -2213,9 +2213,11 @@
           const summary = document.createElement('button');
           summary.type = 'button';
           summary.className = 'meeting-summary';
-          summary.textContent = privacyMode
-            ? `${formatWeekday(date)} ${formatLocalDate(date)} ${formatTime24(date)} — ${anonymizeText(item.title, 'Meeting', item.id)}`
-            : `${formatWeekday(date)} ${formatLocalDate(date)} ${formatTime24(date)} — ${item.title}`;
+          const summaryPrefix = `${formatWeekday(date)} ${formatLocalDate(date)} ${formatTime24(date)} - `;
+          const summaryTitle = privacyMode
+            ? anonymizeText(item.title, 'Meeting', item.id)
+            : item.title;
+          summary.innerHTML = `${escapeHtml(summaryPrefix)}<span class="meeting-summary-title">${escapeHtml(summaryTitle)}</span>`;
           summary.addEventListener('click', () => {
             meeting.expandedId = meeting.expandedId === item.id ? null : item.id;
             meeting.editingId = null;
@@ -3506,8 +3508,6 @@
         const isDeleted = item.deleted || Boolean(item.deletedAt) || item.status === 'deleted';
         if (!isCompleted && !isDeleted) return;
         item.archived = true;
-        item.deleted = true;
-        if (!item.deletedAt) item.deletedAt = now;
         item.updatedAt = now;
       });
       saveList(list);
