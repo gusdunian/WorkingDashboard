@@ -25,6 +25,8 @@
   const HASH_TAG_REGEX = /(^|[\s(>])(#[A-Za-z0-9_-]+)/g;
   const URGENCY_LOW = 3;
   const MOVE_HIGHLIGHT_MS = 5000;
+  const ACTION_SHORTCUT_TOKEN_REGEX = /%(\d{1,5})/g;
+  const ACTION_SHORTCUT_TRIGGER_KEY_REGEX = /^[\s.,!?;:)}\]"']$/;
 
   const DEFAULT_DASHBOARD_TITLE = 'Angus’ Working Dashboard';
 
@@ -3332,6 +3334,127 @@
     });
   }
 
+  function getSelectionTextOffsetWithin(root) {
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount) return null;
+    const range = selection.getRangeAt(0);
+    if (!root.contains(range.endContainer)) return null;
+    const prefixRange = range.cloneRange();
+    prefixRange.selectNodeContents(root);
+    prefixRange.setEnd(range.endContainer, range.endOffset);
+    return prefixRange.toString().length;
+  }
+
+  function getTextNodePositionAtOffset(root, targetOffset) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let textNode = walker.nextNode();
+    let consumed = 0;
+    while (textNode) {
+      const nodeLength = textNode.textContent.length;
+      if (targetOffset <= consumed + nodeLength) {
+        return { node: textNode, offset: Math.max(0, targetOffset - consumed) };
+      }
+      consumed += nodeLength;
+      textNode = walker.nextNode();
+    }
+    return { node: root, offset: root.childNodes.length };
+  }
+
+  function removeEditorTextRange(root, startOffset, endOffset) {
+    if (!root || !Number.isInteger(startOffset) || !Number.isInteger(endOffset) || endOffset <= startOffset) return false;
+    const startPos = getTextNodePositionAtOffset(root, startOffset);
+    const endPos = getTextNodePositionAtOffset(root, endOffset);
+    const range = document.createRange();
+    range.setStart(startPos.node, startPos.offset);
+    range.setEnd(endPos.node, endPos.offset);
+    range.deleteContents();
+    root.normalize();
+    return true;
+  }
+
+  function findShortcutTokenInPrefix(prefixText) {
+    if (!prefixText) return null;
+    const matches = Array.from(prefixText.matchAll(ACTION_SHORTCUT_TOKEN_REGEX));
+    for (let i = matches.length - 1; i >= 0; i -= 1) {
+      const match = matches[i];
+      const trailing = prefixText.slice(match.index + match[0].length);
+      if (/^[\s.,!?;:)}\]"']*$/.test(trailing)) {
+        return { token: match[0], number: Number(match[1]), start: match.index, end: match.index + match[0].length };
+      }
+    }
+    return null;
+  }
+
+  function findActionByNumber(number) {
+    if (!Number.isInteger(number)) return null;
+    const sourceActions = [...appState.generalActions, ...appState.schedulingActions];
+    const match = sourceActions.find((action) => Number(action?.number) === number);
+    if (!match) return null;
+    return { number, text: htmlToPlainText(match.html || match.text || '') };
+  }
+
+  function hasExistingActionLine(editorEl, lineText) {
+    const normalizedTarget = (lineText || '').trim().toLowerCase();
+    if (!normalizedTarget) return false;
+    const lines = (editorEl.innerText || '')
+      .split(/\n+/)
+      .map((line) => line.replace(/\s+/g, ' ').trim().toLowerCase())
+      .filter(Boolean);
+    return lines.includes(normalizedTarget);
+  }
+
+  function prependActionReference(editorEl, actionRef) {
+    if (!editorEl || !actionRef) return;
+    const linePrefix = `Action ${actionRef.number}`;
+    const lineText = `${linePrefix} - ${actionRef.text}`;
+    if (hasExistingActionLine(editorEl, lineText)) return;
+
+    const firstElement = Array.from(editorEl.childNodes).find((node) => node.nodeType === Node.ELEMENT_NODE);
+    if (firstElement && firstElement.tagName === 'UL') {
+      const li = document.createElement('li');
+      li.innerHTML = `<strong>${escapeHtml(linePrefix)}</strong>${escapeHtml(` - ${actionRef.text}`)}`;
+      firstElement.prepend(li);
+      return;
+    }
+
+    const ul = document.createElement('ul');
+    const li = document.createElement('li');
+    li.innerHTML = `<strong>${escapeHtml(linePrefix)}</strong>${escapeHtml(` - ${actionRef.text}`)}`;
+    ul.appendChild(li);
+    editorEl.prepend(ul);
+  }
+
+  function processActionShortcutInEditor(editorEl, options = {}) {
+    if (!editorEl || privacyMode) return;
+    const caretOffset = options.useCaret !== false ? getSelectionTextOffsetWithin(editorEl) : null;
+    const plainText = editorEl.innerText || '';
+    const prefix = plainText.slice(0, Number.isInteger(caretOffset) ? caretOffset : plainText.length);
+    const tokenMatch = findShortcutTokenInPrefix(prefix);
+    if (!tokenMatch) return;
+
+    const actionRef = findActionByNumber(tokenMatch.number);
+    if (!actionRef) {
+      showToast(`Action ${tokenMatch.number} not found`, 'warning');
+      return;
+    }
+
+    const removed = removeEditorTextRange(editorEl, tokenMatch.start, tokenMatch.end);
+    if (!removed) return;
+    prependActionReference(editorEl, actionRef);
+  }
+
+  function bindActionShortcutEditor(editorEl) {
+    if (!editorEl) return;
+    editorEl.addEventListener('keyup', (event) => {
+      if (!event || event.isComposing) return;
+      if (event.key !== 'Enter' && !ACTION_SHORTCUT_TRIGGER_KEY_REGEX.test(event.key || '')) return;
+      processActionShortcutInEditor(editorEl, { useCaret: true });
+    });
+    editorEl.addEventListener('blur', () => {
+      processActionShortcutInEditor(editorEl, { useCaret: false });
+    });
+  }
+
   function resetMeetingEntryAutofillState() {
     meetingUserTouchedDate = false;
     meetingUserTouchedTime = false;
@@ -4093,6 +4216,11 @@
   bindEditorShortcuts(bigTicketModalEditor);
   bindEditorShortcuts(generalNotes.editor);
   bindEditorShortcuts(generalNoteBigEditEditor);
+
+  bindActionShortcutEditor(meeting.notesEditor);
+  bindActionShortcutEditor(meetingBigEditNotesEditor);
+  bindActionShortcutEditor(generalNotes.editor);
+  bindActionShortcutEditor(generalNoteBigEditEditor);
 
   modalSaveBtn.addEventListener('click', () => {
     if (persistModalChanges()) closeModal(true);
