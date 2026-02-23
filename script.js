@@ -18,7 +18,7 @@
   const LOCAL_DIRTY_SINCE_KEY = 'localDirtySince';
   const LOCAL_STATE_VERSION_KEY = 'dashboardStateVersion';
   const PRIVACY_MODE_KEY = 'dashboardPrivacyMode';
-  const LATEST_STATE_VERSION = 11;
+  const LATEST_STATE_VERSION = 12;
   const AUTOSYNC_DEBOUNCE_MS = 2000;
   const FOCUS_SYNC_DEBOUNCE_MS = 700;
   const PERSON_TAG_REGEX = /(^|[\s(>])(@[A-Za-z0-9_-]+)/g;
@@ -157,6 +157,15 @@
     generalNotes: false,
   };
 
+  const cardLayoutDefault = {
+    columns: [
+      ['generalActions'],
+      ['bigTicket', 'scheduling'],
+      ['meetingNotes', 'generalNotes'],
+    ],
+  };
+  const cardColumnClassNames = ['general-column', 'planning-column', 'notes-column'];
+
   const { createClient } = supabase;
   const sb = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
@@ -282,6 +291,7 @@
   const uiState = {
     collapsedCards: { ...collapsedCardsDefault },
     collapsedGeneralNotesMonths: {},
+    cardLayout: structuredClone(cardLayoutDefault),
     theme: { presetName: 'Office Blue', vars: { ...defaultTheme } },
     dashboardTitle: DEFAULT_DASHBOARD_TITLE,
     personFilter: 'All',
@@ -299,6 +309,7 @@
     ui: {
       collapsedCards: { ...collapsedCardsDefault },
       collapsedGeneralNotesMonths: {},
+      cardLayout: structuredClone(cardLayoutDefault),
       theme: { presetName: 'Office Blue', vars: { ...defaultTheme } },
       dashboardTitle: DEFAULT_DASHBOARD_TITLE,
       personFilter: 'All',
@@ -1018,6 +1029,56 @@
     root.style.setProperty('--card-header-fg', theme.cardHeaderFg);
   }
 
+
+  function normalizeCardLayout(layoutLike) {
+    const expectedCards = Object.keys(collapsedCardsDefault);
+    const sourceColumns = Array.isArray(layoutLike?.columns) ? layoutLike.columns : [];
+    const seen = new Set();
+    const columns = cardLayoutDefault.columns.map((defaultColumn, columnIndex) => {
+      const sourceColumn = Array.isArray(sourceColumns[columnIndex]) ? sourceColumns[columnIndex] : [];
+      const normalized = sourceColumn.filter((cardId) => expectedCards.includes(cardId) && !seen.has(cardId));
+      normalized.forEach((cardId) => seen.add(cardId));
+      return normalized;
+    });
+
+    expectedCards.forEach((cardId) => {
+      if (seen.has(cardId)) return;
+      const fallbackColumnIndex = cardLayoutDefault.columns.findIndex((column) => column.includes(cardId));
+      const targetColumnIndex = fallbackColumnIndex >= 0 ? fallbackColumnIndex : 0;
+      columns[targetColumnIndex].push(cardId);
+      seen.add(cardId);
+    });
+
+    return { columns };
+  }
+
+  function findCardLayoutPosition(cardId) {
+    for (let columnIndex = 0; columnIndex < uiState.cardLayout.columns.length; columnIndex += 1) {
+      const cardIndex = uiState.cardLayout.columns[columnIndex].indexOf(cardId);
+      if (cardIndex >= 0) {
+        return { columnIndex, cardIndex };
+      }
+    }
+    return null;
+  }
+
+  function arrangeCardsByLayout() {
+    if (!columnsSection) return;
+    const columnStacks = cardColumnClassNames.map((className) => columnsSection.querySelector(`.${className}`)).filter(Boolean);
+    if (columnStacks.length !== cardColumnClassNames.length) return;
+    const cardsById = new Map([...columnsSection.querySelectorAll('.collapsible-card')].map((card) => [card.dataset.cardId, card]));
+
+    uiState.cardLayout.columns.forEach((cardIds, columnIndex) => {
+      const stack = columnStacks[columnIndex];
+      if (!stack) return;
+      cardIds.forEach((cardId) => {
+        const card = cardsById.get(cardId);
+        if (!card) return;
+        stack.appendChild(card);
+      });
+    });
+  }
+
   function loadUiState() {
     const parsed = parseStoredJson(localStorage.getItem('dashboardUiState'), {});
     uiState.collapsedCards = {
@@ -1027,6 +1088,7 @@
     uiState.collapsedGeneralNotesMonths = parsed?.collapsedGeneralNotesMonths && typeof parsed.collapsedGeneralNotesMonths === 'object'
       ? parsed.collapsedGeneralNotesMonths
       : {};
+    uiState.cardLayout = normalizeCardLayout(parsed?.cardLayout);
     uiState.theme = normalizeThemeState(parsed?.theme);
     uiState.dashboardTitle = typeof parsed?.dashboardTitle === 'string' && parsed.dashboardTitle.trim()
       ? parsed.dashboardTitle.trim()
@@ -1188,6 +1250,14 @@
       baseState.stateVersion = 10;
     }
 
+    if (baseState.stateVersion < 12) {
+      baseState.ui = {
+        ...baseState.ui,
+        cardLayout: normalizeCardLayout(baseState.ui?.cardLayout),
+      };
+      baseState.stateVersion = 12;
+    }
+
     if (baseState.stateVersion < LATEST_STATE_VERSION) {
       baseState.stateVersion = LATEST_STATE_VERSION;
     }
@@ -1198,6 +1268,7 @@
         ...(baseState.ui.collapsedCards && typeof baseState.ui.collapsedCards === 'object' ? baseState.ui.collapsedCards : {}),
       },
       collapsedGeneralNotesMonths: baseState.ui.collapsedGeneralNotesMonths && typeof baseState.ui.collapsedGeneralNotesMonths === 'object' ? baseState.ui.collapsedGeneralNotesMonths : {},
+      cardLayout: normalizeCardLayout(baseState.ui.cardLayout),
       theme: normalizeThemeState(baseState.ui.theme),
       dashboardTitle: typeof baseState.ui.dashboardTitle === 'string' && baseState.ui.dashboardTitle.trim()
         ? baseState.ui.dashboardTitle.trim()
@@ -1253,6 +1324,7 @@
     appState.ui = {
       collapsedCards: uiState.collapsedCards,
       collapsedGeneralNotesMonths: uiState.collapsedGeneralNotesMonths,
+      cardLayout: uiState.cardLayout,
       theme: uiState.theme,
       dashboardTitle: uiState.dashboardTitle,
       personFilter: uiState.personFilter || 'All',
@@ -1459,6 +1531,7 @@
       ui: {
       collapsedCards: { ...collapsedCardsDefault },
       collapsedGeneralNotesMonths: {},
+      cardLayout: structuredClone(cardLayoutDefault),
       theme: { presetName: 'Office Blue', vars: { ...defaultTheme } },
       dashboardTitle: DEFAULT_DASHBOARD_TITLE,
       personFilter: 'All',
@@ -2214,6 +2287,102 @@
   }
 
 
+
+  function moveCardAcrossColumns(cardId, direction) {
+    const position = findCardLayoutPosition(cardId);
+    if (!position) return;
+    const targetColumnIndex = position.columnIndex + direction;
+    if (targetColumnIndex < 0 || targetColumnIndex >= uiState.cardLayout.columns.length) return;
+
+    uiState.cardLayout.columns[position.columnIndex].splice(position.cardIndex, 1);
+    uiState.cardLayout.columns[targetColumnIndex].unshift(cardId);
+    saveUiState();
+    renderAll();
+  }
+
+  function moveCardWithinColumn(cardId, direction) {
+    const position = findCardLayoutPosition(cardId);
+    if (!position) return;
+    const column = uiState.cardLayout.columns[position.columnIndex];
+    const targetIndex = position.cardIndex + direction;
+    if (targetIndex < 0 || targetIndex >= column.length) return;
+    [column[position.cardIndex], column[targetIndex]] = [column[targetIndex], column[position.cardIndex]];
+    saveUiState();
+    renderAll();
+  }
+
+  function initializeCardReorderControls() {
+    document.querySelectorAll('.collapsible-card').forEach((card) => {
+      const cardId = card.dataset.cardId;
+      const header = card.querySelector('.column-header');
+      const toggle = header?.querySelector('[data-card-toggle]');
+      if (!header || !toggle || !cardId) return;
+      if (header.querySelector('[data-card-reorder-group]')) return;
+
+      const group = document.createElement('div');
+      group.className = 'card-reorder-controls';
+      group.setAttribute('data-card-reorder-group', cardId);
+      group.setAttribute('aria-label', 'Reorder card');
+
+      const controls = [
+        { action: 'left', symbol: '←', label: 'Move card left' },
+        { action: 'right', symbol: '→', label: 'Move card right' },
+        { action: 'up', symbol: '↑', label: 'Move card up' },
+        { action: 'down', symbol: '↓', label: 'Move card down' },
+      ];
+
+      controls.forEach(({ action, symbol, label }) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'card-reorder-btn';
+        button.dataset.cardMove = action;
+        button.dataset.cardId = cardId;
+        button.textContent = symbol;
+        button.setAttribute('aria-label', label);
+        group.appendChild(button);
+      });
+
+      header.insertBefore(group, toggle);
+    });
+  }
+
+  function updateCardReorderControls() {
+    const isMobile = window.matchMedia('(max-width: 760px)').matches;
+    document.querySelectorAll('.collapsible-card').forEach((card) => {
+      const cardId = card.dataset.cardId;
+      const position = findCardLayoutPosition(cardId);
+      if (!position) return;
+      const column = uiState.cardLayout.columns[position.columnIndex];
+      const buttonMap = {
+        left: card.querySelector('[data-card-move="left"]'),
+        right: card.querySelector('[data-card-move="right"]'),
+        up: card.querySelector('[data-card-move="up"]'),
+        down: card.querySelector('[data-card-move="down"]'),
+      };
+      if (buttonMap.left) buttonMap.left.disabled = isMobile || position.columnIndex === 0;
+      if (buttonMap.right) buttonMap.right.disabled = isMobile || position.columnIndex === uiState.cardLayout.columns.length - 1;
+      if (buttonMap.up) buttonMap.up.disabled = position.cardIndex === 0;
+      if (buttonMap.down) buttonMap.down.disabled = position.cardIndex === column.length - 1;
+    });
+  }
+
+  function bindCardReorderEvents() {
+    document.querySelectorAll('[data-card-reorder-group]').forEach((group) => {
+      if (group.dataset.bound === 'true') return;
+      group.dataset.bound = 'true';
+      group.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-card-move]');
+        if (!button || button.disabled) return;
+        const { cardId } = button.dataset;
+        const move = button.dataset.cardMove;
+        if (move === 'left') moveCardAcrossColumns(cardId, -1);
+        if (move === 'right') moveCardAcrossColumns(cardId, 1);
+        if (move === 'up') moveCardWithinColumn(cardId, -1);
+        if (move === 'down') moveCardWithinColumn(cardId, 1);
+      });
+    });
+  }
+
   function renderCardCollapseState() {
     document.querySelectorAll('[data-card-toggle]').forEach((toggle) => {
       const cardId = toggle.dataset.cardToggle;
@@ -2560,6 +2729,8 @@
     renderBigTicketItems();
     renderMeetings();
     renderGeneralNotes();
+    arrangeCardsByLayout();
+    updateCardReorderControls();
     renderCardCollapseState();
     renderCollapseAllButton();
   }
@@ -3596,6 +3767,7 @@
       ui: {
         collapsedCards: currentState.ui?.collapsedCards || importedState.ui?.collapsedCards || { ...collapsedCardsDefault },
         collapsedGeneralNotesMonths: currentState.ui?.collapsedGeneralNotesMonths || importedState.ui?.collapsedGeneralNotesMonths || {},
+        cardLayout: currentState.ui?.cardLayout || importedState.ui?.cardLayout || structuredClone(cardLayoutDefault),
         theme: currentState.ui?.theme || importedState.ui?.theme || normalizeThemeState(defaultTheme),
         dashboardTitle: currentState.ui?.dashboardTitle || importedState.ui?.dashboardTitle || DEFAULT_DASHBOARD_TITLE,
         personFilter: currentState.ui?.personFilter || importedState.ui?.personFilter || 'All',
@@ -4059,6 +4231,8 @@
   bindGeneralNotesEvents();
   applyTheme(defaultTheme);
   bindCardToggleEvents();
+  initializeCardReorderControls();
+  bindCardReorderEvents();
   bindCloudEvents();
   loadData();
   renderAll();
