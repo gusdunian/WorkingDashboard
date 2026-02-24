@@ -6,7 +6,7 @@
   const NEXT_NUMBER_STORAGE_KEY = 'nextActionNumber';
   const LEGACY_STORAGE_KEY = 'generalActions.v1';
   const DEFAULT_NEXT_NUMBER = 137;
-  const ALLOWED_RICH_TAGS = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'BR', 'P', 'UL', 'OL', 'LI']);
+  const ALLOWED_RICH_TAGS = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'BR', 'P', 'UL', 'OL', 'LI', 'DIV']);
 
   const ALLOWED_MINUTES = ['00', '15', '30', '45'];
   const SUPABASE_URL = 'https://ngmcjvsqontdwgxyedwx.supabase.co';
@@ -21,8 +21,8 @@
   const LATEST_STATE_VERSION = 11;
   const AUTOSYNC_DEBOUNCE_MS = 2000;
   const FOCUS_SYNC_DEBOUNCE_MS = 700;
-  const PERSON_TAG_REGEX = /(^|[\s(>])(@[A-Za-z0-9_-]+)/g;
-  const HASH_TAG_REGEX = /(^|[\s(>])(#[A-Za-z0-9_-]+)/g;
+  const PERSON_TAG_REGEX = /(^|[\s(>])(@[A-Za-z0-9_-]+)(?=$|[\s.,;:!?()[\]{}"'])/g;
+  const HASH_TAG_REGEX = /(^|[\s(>])(#[A-Za-z0-9_-]+)(?=$|[\s.,;:!?()[\]{}"'])/g;
   const URGENCY_LOW = 3;
   const MOVE_HIGHLIGHT_MS = 5000;
   const ACTION_SHORTCUT_TOKEN_REGEX = /%(\d{1,5})%/g;
@@ -555,10 +555,49 @@
     return output.innerHTML.trim();
   }
 
-  function htmlToPlainText(html) {
+  function htmlToPlainText(html, { preserveLineBreaks = false } = {}) {
     const container = document.createElement('div');
     container.innerHTML = html || '';
-    return (container.textContent || '').replace(/\s+/g, ' ').trim();
+
+    const lineBreakTags = new Set(['BR', 'P', 'DIV', 'LI']);
+    const blockTags = new Set(['P', 'DIV', 'LI', 'UL', 'OL']);
+    let output = '';
+
+    function appendSeparator() {
+      if (!output) return;
+      if (output.endsWith('\n')) return;
+      output += '\n';
+    }
+
+    function walk(node) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        output += node.textContent || '';
+        return;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) {
+        return;
+      }
+
+      const tag = node.tagName.toUpperCase();
+      if (lineBreakTags.has(tag)) appendSeparator();
+      Array.from(node.childNodes).forEach(walk);
+      if (blockTags.has(tag)) appendSeparator();
+    }
+
+    Array.from(container.childNodes).forEach(walk);
+
+    const normalized = output
+      .replace(/\r/g, '')
+      .replace(/\n[\t \f\v]+/g, '\n')
+      .replace(/[\t \f\v]+\n/g, '\n')
+      .replace(/[\t \f\v]+/g, ' ')
+      .replace(/\n{2,}/g, '\n')
+      .trim();
+
+    if (!preserveLineBreaks) {
+      return normalized.replace(/\n+/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+    return normalized;
   }
 
   function markLocalDirty() {
@@ -706,6 +745,63 @@
 
     const inline = Array.from(container.childNodes).map(nodeToInline).join(' ').replace(/\s+/g, ' ').trim();
     return inline || htmlToPlainText(source);
+  }
+
+
+  function richHtmlToFirstLineInlineHtml(html) {
+    const source = sanitizeRichHtml(html || '');
+    const container = document.createElement('div');
+    container.innerHTML = source;
+    const firstLineText = htmlToPlainText(source, { preserveLineBreaks: true }).split(/\n/)[0]?.trim() || '';
+
+    const state = { hitBoundary: false, seenBoundary: false };
+
+    function nodeToFirstLine(node) {
+      if (state.hitBoundary) return '';
+      if (node.nodeType === Node.TEXT_NODE) {
+        return node.textContent || '';
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) {
+        return '';
+      }
+      const tag = node.tagName.toUpperCase();
+      if (tag === 'BR') {
+        state.hitBoundary = true;
+        state.seenBoundary = true;
+        return '';
+      }
+      if (['P', 'DIV', 'LI'].includes(tag) && state.seenBoundary) {
+        state.hitBoundary = true;
+        return '';
+      }
+
+      const childContent = Array.from(node.childNodes).map(nodeToFirstLine).join(' ');
+
+      if (['P', 'DIV', 'LI'].includes(tag)) {
+        state.seenBoundary = true;
+      }
+
+      if (['B', 'STRONG', 'I', 'EM', 'U'].includes(tag)) {
+        const normalized = childContent.replace(/\s+/g, ' ').trim();
+        return normalized ? `<${tag.toLowerCase()}>${normalized}</${tag.toLowerCase()}>` : '';
+      }
+      if (tag === 'UL' || tag === 'OL') {
+        const normalized = childContent.replace(/\s+/g, ' ').trim();
+        return normalized ? `• ${normalized}` : '';
+      }
+      return childContent;
+    }
+
+    const firstLineHtml = Array.from(container.childNodes).map(nodeToFirstLine).join(' ').replace(/\s+/g, ' ').trim();
+    const fullText = htmlToPlainText(source, { preserveLineBreaks: true });
+    const lines = fullText ? fullText.split(/\n/) : [];
+    const hasMoreLines = lines.slice(1).some((line) => line.trim());
+
+    return {
+      firstLineHtml: firstLineHtml || escapeHtml(firstLineText),
+      firstLineText,
+      hasMoreLines,
+    };
   }
 
   function resolveThemePresetName(themeVars) {
@@ -1644,6 +1740,7 @@
   }
 
   function updateRowTruncation(row) {
+    if (row?.dataset?.listKey === GENERAL_STORAGE_KEY) return;
     const textEl = row.querySelector('.action-text');
     const toggleBtn = row.querySelector('.action-text-toggle');
     if (!textEl || !toggleBtn) return;
@@ -1832,6 +1929,7 @@
       const li = document.createElement('li');
       li.className = 'action-item';
       li.dataset.actionId = getActionIdentifier(list, action);
+      li.dataset.listKey = list.key;
       if (action.completed) li.classList.add('completed');
       if (action.deleted) li.classList.add('deleted');
       if (!action.completed && !action.deleted) {
@@ -1877,17 +1975,20 @@
 
       const text = document.createElement('span');
       text.className = 'action-text';
+      const isGeneralList = list.key === GENERAL_STORAGE_KEY;
+      const firstLine = isGeneralList ? richHtmlToFirstLineInlineHtml(action.html || action.html_inline || textToRichHtml(action.text || '')) : null;
       text.innerHTML = privacyMode
-        ? anonymizeInlineHtml(action.text, 'Action', actionKey)
-        : (action.html_inline || escapeHtml(action.text));
+        ? anonymizeInlineHtml(isGeneralList ? (firstLine?.firstLineText || action.text) : action.text, 'Action', actionKey)
+        : (isGeneralList ? firstLine.firstLineHtml : (action.html_inline || escapeHtml(action.text)));
       if (action.urgencyLevel === 2 && !action.completed && !action.deleted) text.classList.add('super-urgent-text');
       textWrap.appendChild(text);
 
       const expandBtn = document.createElement('button');
       expandBtn.type = 'button';
       expandBtn.className = 'action-text-toggle';
-      expandBtn.textContent = '+';
-      expandBtn.hidden = true;
+      expandBtn.textContent = isGeneralList ? '⋯' : '+';
+      if (isGeneralList) expandBtn.classList.add('more-detail-indicator');
+      expandBtn.hidden = isGeneralList ? !firstLine?.hasMoreLines : true;
       expandBtn.addEventListener('click', (event) => {
         event.stopPropagation();
         openModal(list, actionKey);
@@ -1957,7 +2058,7 @@
         openModal(list, actionKey);
       });
       list.listEl.appendChild(li);
-      requestAnimationFrame(() => updateRowTruncation(li));
+      if (!isGeneralList) requestAnimationFrame(() => updateRowTruncation(li));
     });
 
     const countLabel = useFilters && (selectedPerson !== 'All' || selectedTag !== 'All') ? `Showing ${visibleCount} of ${totalCount}` : '';
