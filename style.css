@@ -432,11 +432,9 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, [contentedita
 .modal[hidden] { display: none; }
 .modal-backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.55); }
 body.big-edit-open #meeting-big-edit-modal .modal-backdrop { background: rgba(17, 17, 17, 0.92); }
-body.big-edit-open.big-edit-obscure-background .container,
-body.big-edit-open.big-edit-obscure-background .banner,
-body.big-edit-open.big-edit-obscure-background #toast-container { filter: blur(8px); }
+body.modal-open-blur .card-body { filter: blur(6px); opacity: 0.72; user-select: none; pointer-events: none; }
 .modal-dialog { position: relative; width: min(640px, calc(100vw - 2rem)); max-height: 80vh; background: #fff; border-radius: 10px; padding: 0.9rem; border: 1px solid var(--border); display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 0.55rem; z-index: 1; }
-.big-edit-dialog { width: min(88vw, 1150px); min-width: min(88vw, 680px); height: min(82vh, 900px); max-height: 85vh; resize: both; overflow: auto; }
+.big-edit-dialog { width: min(88vw, 1150px); min-width: min(88vw, 680px); height: min(66vh, 720px); max-height: 72vh; resize: both; overflow: auto; }
 .big-edit-dialog { display: flex; flex-direction: column; gap: 0.55rem; }
 .big-edit-header-row { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; padding-right: 2rem; }
 .big-edit-header-row h3 { margin: 0; }

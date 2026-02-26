@@ -2894,6 +2894,7 @@
     bigTicketModalEditor.innerHTML = privacyMode ? anonymizeRichHtml(item.text, 'Big ticket', item.id) : item.html;
     bigTicketModalEditor.contentEditable = privacyMode ? 'false' : 'true';
     bigTicketModal.hidden = false;
+    refreshBigEditBlurState();
     bigTicketModalEditor.focus();
   }
 
@@ -2917,6 +2918,7 @@
     if (!skipSave && bigTicket.activeId) saveBigTicketModal();
     bigTicketModal.hidden = true;
     bigTicket.activeId = null;
+    refreshBigEditBlurState();
   }
 
   function addGeneralNote(dateRaw, titleRaw, htmlRaw) {
@@ -2949,6 +2951,7 @@
     generalNoteBigEditDateInput.disabled = privacyMode;
     generalNoteBigEditEditor.contentEditable = privacyMode ? 'false' : 'true';
     generalNoteBigEditModal.hidden = false;
+    refreshBigEditBlurState();
     setGeneralNoteEditMode('text');
     whiteboardState.undoStack = [];
     whiteboardState.touched = false;
@@ -2969,6 +2972,7 @@
     generalNoteBigEditDateInput.disabled = false;
     generalNoteBigEditEditor.contentEditable = 'true';
     generalNoteBigEditModal.hidden = true;
+    refreshBigEditBlurState();
     activeGeneralNoteBigEditId = null;
     activeGeneralNoteBigEditDraft = null;
   }
@@ -3772,6 +3776,12 @@
   }
 
 
+
+  function refreshBigEditBlurState() {
+    const shouldBlur = !meetingBigEditModal.hidden || !bigTicketModal.hidden || !generalNoteBigEditModal.hidden;
+    document.body.classList.toggle('modal-open-blur', shouldBlur);
+  }
+
   function getMeetingById(id) {
     return meeting.items.find((item) => item.id === id) || null;
   }
@@ -3800,6 +3810,7 @@
     meetingBigEditNotesEditor.contentEditable = privacyMode ? 'false' : 'true';
     meetingBigEditModal.hidden = false;
     document.body.classList.add('big-edit-open');
+    refreshBigEditBlurState();
     if (!meetingBigEditHideBgToggle || meetingBigEditHideBgToggle.checked) {
       document.body.classList.add('big-edit-obscure-background');
     } else {
@@ -3825,6 +3836,7 @@
     meetingBigEditNotesEditor.contentEditable = 'true';
     meetingBigEditModal.hidden = true;
     document.body.classList.remove('big-edit-open', 'big-edit-obscure-background');
+    refreshBigEditBlurState();
     activeMeetingBigEditId = null;
     activeMeetingBigEditDraft = null;
 
