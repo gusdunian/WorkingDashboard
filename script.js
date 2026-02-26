@@ -186,6 +186,7 @@
   const meetingBigEditMinuteInput = document.getElementById('meeting-big-edit-minute-input');
   const meetingBigEditNotesEditor = document.getElementById('meeting-big-edit-notes-editor');
   const meetingBigEditDictateBtn = document.getElementById('meeting-big-edit-dictate');
+  const meetingBigEditHideBgToggle = document.getElementById('meeting-big-edit-hide-bg-toggle');
   const bigTicketModal = document.getElementById('big-ticket-modal');
   const bigTicketModalBackdrop = document.getElementById('big-ticket-modal-backdrop');
   const bigTicketModalClose = document.getElementById('big-ticket-modal-close');
@@ -264,6 +265,7 @@
     minuteInput: document.getElementById('meeting-minute-input'),
     notesEditor: document.getElementById('meeting-notes-editor'),
     listEl: document.getElementById('meeting-list'),
+    bigBtn: document.getElementById('meeting-big-btn'),
   };
 
   const bigTicket = {
@@ -1020,10 +1022,10 @@
       notesText: typeof item.notesText === 'string' ? item.notesText : '',
       createdAt: item.createdAt || null,
       updatedAt: item.updatedAt || null,
+      draft: item?.draft === true,
     };
 
     ensureMeetingRichContent(normalized);
-    if (!normalized.notesText) return null;
     return normalized;
   }
 
@@ -2844,16 +2846,17 @@
     renderList(list);
   }
 
-  function addMeeting(titleRaw, dateRaw, timeRaw, notesHtmlRaw) {
-    if (privacyMode) return false;
+  function addMeeting(titleRaw, dateRaw, timeRaw, notesHtmlRaw, options = {}) {
+    if (privacyMode) return null;
     const title = titleRaw.trim();
     const parsed = parseLocalDateTime(dateRaw, timeRaw);
     const notesHtml = sanitizeRichHtml(notesHtmlRaw);
     const notesText = htmlToPlainText(notesHtml);
-    if (!title || !notesText || !parsed) return false;
+    if (!title || !parsed) return null;
+    if (!options.allowEmptyNotes && !notesText) return null;
 
     const nowIso = new Date().toISOString();
-    meeting.items.push({
+    const meetingItem = {
       id: `meeting-${Date.now()}-${Math.random().toString(16).slice(2)}`,
       title,
       datetime: parsed.toISOString(),
@@ -2861,11 +2864,14 @@
       notesText,
       createdAt: nowIso,
       updatedAt: nowIso,
-    });
+      draft: options.draft === true,
+    };
+    meeting.items.push(meetingItem);
     saveMeetings();
+    if (options.autosyncImmediate) requestAutosyncImmediate();
     renderMeetings();
     activeMeetingBigEditDraft = null;
-    return true;
+    return meetingItem;
   }
 
 
@@ -3793,11 +3799,18 @@
     meetingBigEditMinuteInput.disabled = privacyMode;
     meetingBigEditNotesEditor.contentEditable = privacyMode ? 'false' : 'true';
     meetingBigEditModal.hidden = false;
+    document.body.classList.add('big-edit-open');
+    if (!meetingBigEditHideBgToggle || meetingBigEditHideBgToggle.checked) {
+      document.body.classList.add('big-edit-obscure-background');
+    } else {
+      document.body.classList.remove('big-edit-obscure-background');
+    }
     meetingBigEditTitleInput.focus();
   }
 
   function closeMeetingBigEdit() {
     stopDictation();
+    const draftId = activeMeetingBigEditId;
     if (activeMeetingBigEditDraft) {
       meetingBigEditTitleInput.value = activeMeetingBigEditDraft.title;
       meetingBigEditDateInput.value = activeMeetingBigEditDraft.date;
@@ -3811,8 +3824,16 @@
     meetingBigEditMinuteInput.disabled = false;
     meetingBigEditNotesEditor.contentEditable = 'true';
     meetingBigEditModal.hidden = true;
+    document.body.classList.remove('big-edit-open', 'big-edit-obscure-background');
     activeMeetingBigEditId = null;
     activeMeetingBigEditDraft = null;
+
+    const draftItem = getMeetingById(draftId);
+    if (draftItem && draftItem.draft && !draftItem.notesText.trim() && !draftItem.title.trim()) {
+      meeting.items = meeting.items.filter((entry) => entry.id !== draftId);
+      saveMeetings();
+      renderMeetings();
+    }
   }
 
   function saveMeetingBigEdit() {
@@ -3830,6 +3851,7 @@
     item.notesHtml = notesHtml;
     item.notesText = notesText;
     item.updatedAt = new Date().toISOString();
+    item.draft = false;
     saveMeetings();
     renderMeetings();
     return true;
@@ -3983,6 +4005,18 @@
         setStatus(`Sync failed: ${error.message}`, 'error');
       });
     }, AUTOSYNC_DEBOUNCE_MS);
+  }
+
+  function requestAutosyncImmediate() {
+    if (privacyMode || suppressAutosync || cloud.importInProgress || !isAuthenticated || !cloud.signedInUser) return;
+    autosyncPending = true;
+    if (autosyncTimer) {
+      window.clearTimeout(autosyncTimer);
+      autosyncTimer = null;
+    }
+    runAutosync().catch((error) => {
+      setStatus(`Sync failed: ${error.message}`, 'error');
+    });
   }
 
   async function runAutosync() {
@@ -4271,6 +4305,31 @@
       meeting.titleInput.focus();
     });
 
+    if (meeting.bigBtn) {
+      meeting.bigBtn.addEventListener('click', () => {
+        const title = meeting.titleInput.value.trim();
+        if (!title) {
+          setStatus('Enter a meeting title first', 'warning');
+          meeting.titleInput.focus();
+          return;
+        }
+        const timeValue = buildTimeValue(meeting.hourInput.value, meeting.minuteInput.value);
+        const parsed = parseLocalDateTime(meeting.dateInput.value, timeValue);
+        if (!parsed) {
+          setStatus('Set meeting date and time first', 'warning');
+          meeting.dateInput.focus();
+          return;
+        }
+        const created = addMeeting(title, meeting.dateInput.value, timeValue, meeting.notesEditor.innerHTML, { allowEmptyNotes: true, draft: true, autosyncImmediate: true });
+        if (!created) return;
+        meeting.form.reset();
+        meeting.minuteInput.value = '00';
+        meeting.notesEditor.innerHTML = '';
+        resetMeetingEntryAutofillState();
+        openMeetingBigEdit(created.id);
+      });
+    }
+
     meeting.form.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
         event.preventDefault();
@@ -4400,6 +4459,11 @@
   meetingBigEditClose.addEventListener('click', closeMeetingBigEdit);
   meetingBigEditCancel.addEventListener('click', closeMeetingBigEdit);
   meetingBigEditBackdrop.addEventListener('click', closeMeetingBigEdit);
+  if (meetingBigEditHideBgToggle) {
+    meetingBigEditHideBgToggle.addEventListener('change', () => {
+      document.body.classList.toggle('big-edit-obscure-background', meetingBigEditHideBgToggle.checked);
+    });
+  }
 
   bigTicketModalSave.addEventListener('click', () => {
     if (saveBigTicketModal()) closeBigTicketModal(true);

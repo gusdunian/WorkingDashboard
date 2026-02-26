@@ -375,8 +375,10 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, [contentedita
 .meeting-add-form > #meeting-title-input { grid-column: 1; grid-row: 1; }
 .meeting-add-form > .meeting-date-time-row { grid-column: 1; grid-row: 2; }
 .meeting-add-form > .meeting-notes-editor { grid-column: 1; grid-row: 3; }
-.meeting-add-form > .notes-format-filter-row { grid-column: 1; grid-row: 4; }
+.meeting-add-form > .notes-format-filter-row { grid-column: 1; grid-row: 4; display: flex; align-items: center; justify-content: space-between; gap: 0.45rem; }
 .meeting-add-form > button[type='submit'] { grid-column: 2; grid-row: 1 / span 4; align-self: stretch; min-width: 2rem; padding: 0.25rem 0.5rem; }
+
+.meeting-big-launch-btn { padding: 0.2rem 0.5rem; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
 
 .general-notes-toolbar .meeting-add-form { grid-template-columns: minmax(0, 1fr) auto; gap: 0.4rem; }
 .general-notes-toolbar .meeting-add-form > #general-note-title-input { grid-column: 1; grid-row: 1; }
@@ -429,9 +431,18 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, [contentedita
 .modal { position: fixed; inset: 0; display: grid; place-items: center; z-index: 20; }
 .modal[hidden] { display: none; }
 .modal-backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.55); }
+body.big-edit-open #meeting-big-edit-modal .modal-backdrop { background: rgba(17, 17, 17, 0.92); }
+body.big-edit-open.big-edit-obscure-background .container,
+body.big-edit-open.big-edit-obscure-background .banner,
+body.big-edit-open.big-edit-obscure-background #toast-container { filter: blur(8px); }
 .modal-dialog { position: relative; width: min(640px, calc(100vw - 2rem)); max-height: 80vh; background: #fff; border-radius: 10px; padding: 0.9rem; border: 1px solid var(--border); display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 0.55rem; z-index: 1; }
 .big-edit-dialog { width: min(88vw, 1150px); min-width: min(88vw, 680px); height: min(82vh, 900px); max-height: 85vh; resize: both; overflow: auto; }
 .big-edit-dialog { display: flex; flex-direction: column; gap: 0.55rem; }
+.big-edit-header-row { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; padding-right: 2rem; }
+.big-edit-header-row h3 { margin: 0; }
+.big-edit-hide-bg-toggle { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.78rem; color: #334155; }
+.big-edit-hide-bg-toggle input { margin: 0; }
+
 .meeting-big-edit-form { display: flex; flex-direction: column; gap: 0.45rem; min-height: 0; flex: 1; }
 .big-edit-dialog .meeting-big-edit-form { min-height: 0; }
 .big-edit-dialog .general-note-edit-panel { min-height: 0; display: flex; flex-direction: column; gap: 0.45rem; flex: 1; }
