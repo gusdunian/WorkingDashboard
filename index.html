@@ -117,6 +117,9 @@
                           <option value="All">All</option>
                         </select>
                       </div>
+                      <div class="inline-filter-control filter-search-control">
+                        <input id="general-search-filter" class="filter-search-input" type="search" placeholder="Search" aria-label="Search actions" />
+                      </div>
                     </div>
                   </div>
                   <span id="general-person-filter-count" class="person-filter-count" aria-live="polite"></span>
@@ -278,6 +281,9 @@
                           <option value="All">All</option>
                         </select>
                       </div>
+                      <div class="inline-filter-control filter-search-control">
+                        <input id="scheduling-search-filter" class="filter-search-input" type="search" placeholder="Search" aria-label="Search scheduling actions" />
+                      </div>
                     </div>
                   </div>
                   <span id="scheduling-person-filter-count" class="person-filter-count" aria-live="polite"></span>
@@ -368,6 +374,9 @@
                           <option value="All">All</option>
                         </select>
                       </div>
+                      <div class="inline-filter-control filter-search-control">
+                        <input id="meeting-search-filter" class="filter-search-input" type="search" placeholder="Search" aria-label="Search meeting notes" />
+                      </div>
                     </div>
                     <button id="meeting-big-btn" type="button" class="subtle-button meeting-big-launch-btn" aria-label="Save draft and open big edit">BIG</button>
                   </div>
@@ -440,6 +449,9 @@
                           <option value="All">All</option>
                         </select>
                       </div>
+                      <div class="inline-filter-control filter-search-control">
+                        <input id="general-notes-search-filter" class="filter-search-input" type="search" placeholder="Search" aria-label="Search general notes" />
+                      </div>
                     </div>
                   </div>
                 </form>
@@ -490,10 +502,6 @@
         <button id="meeting-big-edit-close" type="button" class="modal-close" aria-label="Close modal">×</button>
         <div class="big-edit-header-row">
           <h3 id="meeting-big-edit-title">Edit Meeting</h3>
-          <label class="big-edit-hide-bg-toggle" for="meeting-big-edit-hide-bg-toggle">
-            <input id="meeting-big-edit-hide-bg-toggle" type="checkbox" checked />
-            <span>Hide background</span>
-          </label>
         </div>
         <form id="meeting-big-edit-form" class="meeting-big-edit-form" autocomplete="off">
           <label class="visually-hidden" for="meeting-big-edit-title-input">Meeting title</label>
@@ -514,6 +522,10 @@
               <option value="45">45</option>
             </select>
           </div>
+          <label class="meeting-recorded-toggle" for="meeting-big-edit-recorded">
+            <span>R</span>
+            <input id="meeting-big-edit-recorded" name="recorded" type="checkbox" />
+          </label>
 
           <label class="visually-hidden" for="meeting-big-edit-notes-editor">Meeting notes</label>
           <div id="meeting-big-edit-notes-editor" class="modal-editor" contenteditable="true" role="textbox" aria-multiline="true"></div>

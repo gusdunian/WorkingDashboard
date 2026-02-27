@@ -18,7 +18,7 @@
   const LOCAL_DIRTY_SINCE_KEY = 'localDirtySince';
   const LOCAL_STATE_VERSION_KEY = 'dashboardStateVersion';
   const PRIVACY_MODE_KEY = 'dashboardPrivacyMode';
-  const LATEST_STATE_VERSION = 11;
+  const LATEST_STATE_VERSION = 12;
   const AUTOSYNC_DEBOUNCE_MS = 2000;
   const FOCUS_SYNC_DEBOUNCE_MS = 700;
   const PERSON_TAG_REGEX = /(^|[\s(>])(@[A-Za-z0-9_-]+)(?=$|[\s.,;:!?()[\]{}"'])/g;
@@ -186,7 +186,7 @@
   const meetingBigEditMinuteInput = document.getElementById('meeting-big-edit-minute-input');
   const meetingBigEditNotesEditor = document.getElementById('meeting-big-edit-notes-editor');
   const meetingBigEditDictateBtn = document.getElementById('meeting-big-edit-dictate');
-  const meetingBigEditHideBgToggle = document.getElementById('meeting-big-edit-hide-bg-toggle');
+  const meetingBigEditRecordedInput = document.getElementById('meeting-big-edit-recorded');
   const bigTicketModal = document.getElementById('big-ticket-modal');
   const bigTicketModalBackdrop = document.getElementById('big-ticket-modal-backdrop');
   const bigTicketModalClose = document.getElementById('big-ticket-modal-close');
@@ -230,6 +230,10 @@
   const generalNotesTagFilterSelect = document.getElementById('general-notes-tag-filter');
   const generalPersonCountEl = document.getElementById('general-person-filter-count');
   const schedulingPersonCountEl = document.getElementById('scheduling-person-filter-count');
+  const generalSearchFilterInput = document.getElementById('general-search-filter');
+  const schedulingSearchFilterInput = document.getElementById('scheduling-search-filter');
+  const meetingSearchFilterInput = document.getElementById('meeting-search-filter');
+  const generalNotesSearchFilterInput = document.getElementById('general-notes-search-filter');
 
   const settingsBtn = document.getElementById('cloud-settings-btn');
   const settingsModal = document.getElementById('settings-modal');
@@ -296,6 +300,7 @@
     dashboardTitle: DEFAULT_DASHBOARD_TITLE,
     personFilter: 'All',
     tagFilter: 'All',
+    searchQuery: { general: '', scheduling: '', meetings: '', generalNotes: '' },
   };
 
   const appState = {
@@ -314,6 +319,7 @@
       dashboardTitle: DEFAULT_DASHBOARD_TITLE,
       personFilter: 'All',
       tagFilter: 'All',
+      searchQuery: { general: '', scheduling: '', meetings: '', generalNotes: '' },
     },
     meetingNotesUIState: { collapsedMonths: {}, collapsedWeeks: {} },
     nextActionNumber: DEFAULT_NEXT_NUMBER,
@@ -1023,6 +1029,7 @@
       createdAt: item.createdAt || null,
       updatedAt: item.updatedAt || null,
       draft: item?.draft === true,
+      recorded: item?.recorded === true,
     };
 
     ensureMeetingRichContent(normalized);
@@ -1175,6 +1182,13 @@
     uiState.tagFilter = typeof parsed?.tagFilter === 'string' && parsed.tagFilter.trim()
       ? parsed.tagFilter.trim()
       : 'All';
+    const searchQuery = parsed?.searchQuery && typeof parsed.searchQuery === 'object' ? parsed.searchQuery : {};
+    uiState.searchQuery = {
+      general: typeof searchQuery.general === 'string' ? searchQuery.general : '',
+      scheduling: typeof searchQuery.scheduling === 'string' ? searchQuery.scheduling : '',
+      meetings: typeof searchQuery.meetings === 'string' ? searchQuery.meetings : '',
+      generalNotes: typeof searchQuery.generalNotes === 'string' ? searchQuery.generalNotes : '',
+    };
     generalNotes.uiState.collapsedMonths = uiState.collapsedGeneralNotesMonths;
     applyTheme(uiState.theme.vars);
   }
@@ -1347,6 +1361,12 @@
       tagFilter: typeof baseState.ui.tagFilter === 'string' && baseState.ui.tagFilter.trim()
         ? baseState.ui.tagFilter.trim()
         : 'All',
+      searchQuery: {
+        general: typeof baseState.ui.searchQuery?.general === 'string' ? baseState.ui.searchQuery.general : '',
+        scheduling: typeof baseState.ui.searchQuery?.scheduling === 'string' ? baseState.ui.searchQuery.scheduling : '',
+        meetings: typeof baseState.ui.searchQuery?.meetings === 'string' ? baseState.ui.searchQuery.meetings : '',
+        generalNotes: typeof baseState.ui.searchQuery?.generalNotes === 'string' ? baseState.ui.searchQuery.generalNotes : '',
+      },
     };
 
     const highest = Math.max(DEFAULT_NEXT_NUMBER - 1, ...baseState.generalActions.map((i) => i.number), ...baseState.schedulingActions.map((i) => i.number));
@@ -1397,6 +1417,7 @@
       dashboardTitle: uiState.dashboardTitle,
       personFilter: uiState.personFilter || 'All',
       tagFilter: uiState.tagFilter || 'All',
+      searchQuery: { ...uiState.searchQuery },
     };
     appState.meetingNotesUIState = meeting.uiState;
     appState.nextActionNumber = nextActionNumber;
@@ -1623,6 +1644,8 @@
       theme: { presetName: 'Office Blue', vars: { ...defaultTheme } },
       dashboardTitle: DEFAULT_DASHBOARD_TITLE,
       personFilter: 'All',
+      tagFilter: 'All',
+      searchQuery: { general: '', scheduling: '', meetings: '', generalNotes: '' },
     },
       meetingNotesUIState: { collapsedMonths: {}, collapsedWeeks: {} },
       nextActionNumber: DEFAULT_NEXT_NUMBER,
@@ -1762,16 +1785,39 @@
     return '!';
   }
 
-  function cycleUrgencyLevel(level) {
-    if (level === 0) return 1;
-    if (level === 1) return 2;
-    if (level === 2) return URGENCY_LOW;
-    return 0;
+  function cycleUrgencyLevel(level, direction = 'up') {
+    const ladder = [URGENCY_LOW, 0, 1, 2];
+    const index = ladder.indexOf(level);
+    const currentIndex = index === -1 ? 1 : index;
+    if (direction === 'down') return ladder[(currentIndex - 1 + ladder.length) % ladder.length];
+    return ladder[(currentIndex + 1) % ladder.length];
   }
 
-  function cycleUrgency(action) {
-    action.urgencyLevel = cycleUrgencyLevel(action.urgencyLevel);
+  function cycleUrgency(action, direction = 'up') {
+    action.urgencyLevel = cycleUrgencyLevel(action.urgencyLevel, direction);
     action.updatedAt = Date.now();
+  }
+
+  function bindPriorityDirectionControls(button, onDirectionChange) {
+    if (!button || typeof onDirectionChange !== 'function') return;
+    let clickTimer = null;
+    button.addEventListener('click', (event) => {
+      event.stopPropagation();
+      if (event.detail > 1) return;
+      window.clearTimeout(clickTimer);
+      clickTimer = window.setTimeout(() => {
+        clickTimer = null;
+        onDirectionChange('up');
+      }, 350);
+    });
+    button.addEventListener('dblclick', (event) => {
+      event.stopPropagation();
+      if (clickTimer) {
+        window.clearTimeout(clickTimer);
+        clickTimer = null;
+      }
+      onDirectionChange('down');
+    });
   }
 
   function updateModalUrgencyUI(action) {
@@ -1827,6 +1873,23 @@
     uiState.tagFilter = typeof value === 'string' && value.trim() ? value.trim() : 'All';
     persistViewFilters();
     renderAll();
+  }
+
+  function getSearchQuery(key) {
+    return typeof uiState.searchQuery?.[key] === 'string' ? uiState.searchQuery[key].trim().toLowerCase() : '';
+  }
+
+  function setSearchQuery(key, value) {
+    if (!uiState.searchQuery || typeof uiState.searchQuery !== 'object') uiState.searchQuery = { general: '', scheduling: '', meetings: '', generalNotes: '' };
+    uiState.searchQuery[key] = typeof value === 'string' ? value : '';
+    persistViewFilters();
+    renderAll();
+  }
+
+  function textMatchesSearch(text, query) {
+    if (privacyMode) return true;
+    if (!query) return true;
+    return String(text || '').toLowerCase().includes(query);
   }
 
   function actionHasPersonTag(action, selectedFilter) {
@@ -1900,6 +1963,11 @@
       const selected = hashTags.find((tag) => tag.toLowerCase() === effectiveTag.toLowerCase());
       selectEl.value = effectiveTag === 'All' ? 'All' : (selected || 'All');
     });
+    if (generalSearchFilterInput) generalSearchFilterInput.value = uiState.searchQuery?.general || '';
+    if (schedulingSearchFilterInput) schedulingSearchFilterInput.value = uiState.searchQuery?.scheduling || '';
+    if (meetingSearchFilterInput) meetingSearchFilterInput.value = uiState.searchQuery?.meetings || '';
+    if (generalNotesSearchFilterInput) generalNotesSearchFilterInput.value = uiState.searchQuery?.generalNotes || '';
+
   }
 
   function renderList(list) {
@@ -1908,8 +1976,10 @@
     const selectedPerson = getSelectedPersonFilter();
     const selectedTag = getSelectedTagFilter();
     const useFilters = list.key === GENERAL_STORAGE_KEY || list.key === SCHEDULING_STORAGE_KEY;
+    const searchKey = list.key === GENERAL_STORAGE_KEY ? 'general' : 'scheduling';
+    const query = getSearchQuery(searchKey);
     const visible = useFilters
-      ? ordered.filter((action) => actionHasPersonTag(action, selectedPerson) && actionHasHashTag(action, selectedTag))
+      ? ordered.filter((action) => actionHasPersonTag(action, selectedPerson) && actionHasHashTag(action, selectedTag) && textMatchesSearch(action.text, query))
       : ordered;
     const totalCount = ordered.length;
     const visibleCount = visible.length;
@@ -1917,11 +1987,11 @@
     if (!visible.length) {
       const empty = document.createElement('li');
       empty.className = 'coming-soon';
-      empty.textContent = !useFilters || (selectedPerson === 'All' && selectedTag === 'All')
+      empty.textContent = !useFilters || (selectedPerson === 'All' && selectedTag === 'All' && !query)
         ? 'No actions yet. Add one to get started.'
         : 'No actions match the selected filters.';
       list.listEl.appendChild(empty);
-      const countLabel = useFilters && (selectedPerson !== 'All' || selectedTag !== 'All') ? `Showing 0 of ${totalCount}` : '';
+      const countLabel = useFilters && (selectedPerson !== 'All' || selectedTag !== 'All' || query) ? `Showing 0 of ${totalCount}` : '';
       if (list.key === GENERAL_STORAGE_KEY && generalPersonCountEl) generalPersonCountEl.textContent = countLabel;
       if (list.key === SCHEDULING_STORAGE_KEY && schedulingPersonCountEl) schedulingPersonCountEl.textContent = countLabel;
       return;
@@ -2008,9 +2078,8 @@
       urgentBtn.classList.toggle('active', action.urgencyLevel === 1);
       urgentBtn.classList.toggle('super', action.urgencyLevel === 2);
       urgentBtn.classList.toggle('low', action.urgencyLevel === URGENCY_LOW);
-      urgentBtn.addEventListener('click', (event) => {
-        event.stopPropagation();
-        cycleUrgency(action);
+      bindPriorityDirectionControls(urgentBtn, (direction) => {
+        cycleUrgency(action, direction);
         queueMovedActionHighlight(list, action);
         saveList(list);
         renderList(list);
@@ -2063,7 +2132,7 @@
       if (!isGeneralList) requestAnimationFrame(() => updateRowTruncation(li));
     });
 
-    const countLabel = useFilters && (selectedPerson !== 'All' || selectedTag !== 'All') ? `Showing ${visibleCount} of ${totalCount}` : '';
+    const countLabel = useFilters && (selectedPerson !== 'All' || selectedTag !== 'All' || query) ? `Showing ${visibleCount} of ${totalCount}` : '';
     if (list.key === GENERAL_STORAGE_KEY && generalPersonCountEl) generalPersonCountEl.textContent = countLabel;
     if (list.key === SCHEDULING_STORAGE_KEY && schedulingPersonCountEl) schedulingPersonCountEl.textContent = countLabel;
   }
@@ -2076,13 +2145,15 @@
       || extractPersonTagsFromMeeting(item).some((tag) => tag.toLowerCase() === selectedPerson.toLowerCase());
     const tagMatches = selectedTag === 'All'
       || extractHashTagsFromMeeting(item).some((tag) => tag.toLowerCase() === selectedTag.toLowerCase());
-    return personMatches && tagMatches;
+    const query = getSearchQuery('meetings');
+    const searchMatches = textMatchesSearch(`${item.title} ${item.notesText}`, query);
+    return personMatches && tagMatches && searchMatches;
   }
 
   function getFilteredMeetings() {
     const selectedPerson = getSelectedPersonFilter();
     const selectedTag = getSelectedTagFilter();
-    if (selectedPerson === 'All' && selectedTag === 'All') return [...meeting.items];
+    if (selectedPerson === 'All' && selectedTag === 'All' && !getSearchQuery('meetings')) return [...meeting.items];
     return meeting.items.filter((item) => meetingMatchesFilters(item));
   }
 
@@ -2269,7 +2340,7 @@
     if (!filteredMeetings.length) {
       const empty = document.createElement('p');
       empty.className = 'meeting-empty';
-      empty.textContent = (selectedPerson !== 'All' || selectedTag !== 'All')
+      empty.textContent = (selectedPerson !== 'All' || selectedTag !== 'All' || getSearchQuery('meetings'))
         ? 'No meetings match filter.'
         : 'No meeting notes yet. Add one to get started.';
       meeting.listEl.appendChild(empty);
@@ -2365,7 +2436,15 @@
             openMeetingBigEdit(item.id);
           });
 
-          row.append(summary, quickEditBtn);
+          if (item.recorded) {
+            const recordedIndicator = document.createElement('span');
+            recordedIndicator.className = 'meeting-recorded-indicator';
+            recordedIndicator.textContent = 'R';
+            recordedIndicator.title = 'Recorded';
+            row.append(summary, recordedIndicator, quickEditBtn);
+          } else {
+            row.append(summary, quickEditBtn);
+          }
           li.appendChild(row);
           if (meeting.expandedId === item.id) li.appendChild(renderMeetingExpanded(item));
           meetingsEl.appendChild(li);
@@ -2557,9 +2636,8 @@
       urgentBtn.classList.toggle('active', item.urgencyLevel === 1);
       urgentBtn.classList.toggle('super', item.urgencyLevel === 2);
       urgentBtn.classList.toggle('low', item.urgencyLevel === URGENCY_LOW);
-      urgentBtn.addEventListener('click', (event) => {
-        event.stopPropagation();
-        item.urgencyLevel = cycleUrgencyLevel(item.urgencyLevel);
+      bindPriorityDirectionControls(urgentBtn, (direction) => {
+        item.urgencyLevel = cycleUrgencyLevel(item.urgencyLevel, direction);
         item.updatedAt = Date.now();
         saveBigTicketItems();
         renderBigTicketItems();
@@ -2654,13 +2732,15 @@
       || extractPersonTagsFromGeneralNote(note).some((tag) => tag.toLowerCase() === selectedPerson.toLowerCase());
     const tagMatches = selectedTag === 'All'
       || extractHashTagsFromGeneralNote(note).some((tag) => tag.toLowerCase() === selectedTag.toLowerCase());
-    return personMatches && tagMatches;
+    const query = getSearchQuery('generalNotes');
+    const searchMatches = textMatchesSearch(`${note.title} ${note.text}`, query);
+    return personMatches && tagMatches && searchMatches;
   }
 
   function getFilteredGeneralNotes() {
     const selectedPerson = getSelectedPersonFilter();
     const selectedTag = getSelectedTagFilter();
-    if (selectedPerson === 'All' && selectedTag === 'All') return [...generalNotes.items];
+    if (selectedPerson === 'All' && selectedTag === 'All' && !getSearchQuery('generalNotes')) return [...generalNotes.items];
     return generalNotes.items.filter((note) => generalNoteMatchesFilters(note));
   }
 
@@ -2672,7 +2752,7 @@
     if (!filteredNotes.length) {
       const empty = document.createElement('p');
       empty.className = 'meeting-empty';
-      empty.textContent = (selectedPerson !== 'All' || selectedTag !== 'All')
+      empty.textContent = (selectedPerson !== 'All' || selectedTag !== 'All' || getSearchQuery('generalNotes'))
         ? 'No general notes match filter.'
         : 'No general notes yet.';
       generalNotes.listEl.appendChild(empty);
@@ -2739,7 +2819,15 @@
           whiteboardIndicator.textContent = '🖊';
           row.append(summary, whiteboardIndicator, quickEditBtn);
         } else {
-          row.append(summary, quickEditBtn);
+          if (item.recorded) {
+            const recordedIndicator = document.createElement('span');
+            recordedIndicator.className = 'meeting-recorded-indicator';
+            recordedIndicator.textContent = 'R';
+            recordedIndicator.title = 'Recorded';
+            row.append(summary, recordedIndicator, quickEditBtn);
+          } else {
+            row.append(summary, quickEditBtn);
+          }
         }
         li.appendChild(row);
 
@@ -2865,6 +2953,7 @@
       createdAt: nowIso,
       updatedAt: nowIso,
       draft: options.draft === true,
+      recorded: options.recorded === true,
     };
     meeting.items.push(meetingItem);
     saveMeetings();
@@ -3746,7 +3835,7 @@
     if (list.createUrgencyBtn) {
       list.createUrgencyBtn.addEventListener('click', () => {
         const state = getCreationState(list);
-        state.urgencyLevel = cycleUrgencyLevel(state.urgencyLevel);
+        state.urgencyLevel = cycleUrgencyLevel(state.urgencyLevel, 'up');
         renderCreationControls(list);
       });
     }
@@ -3797,25 +3886,24 @@
       hour: String(date.getHours()).padStart(2, '0'),
       minute: ALLOWED_MINUTES.includes(String(date.getMinutes()).padStart(2, '0')) ? String(date.getMinutes()).padStart(2, '0') : '00',
       notesHtml: item.notesHtml,
+      recorded: item.recorded === true,
     };
     meetingBigEditTitleInput.value = privacyMode ? anonymizeText(item.title, 'Meeting', item.id) : item.title;
     meetingBigEditDateInput.value = dateToDateValue(date);
     meetingBigEditHourInput.value = activeMeetingBigEditDraft.hour;
     meetingBigEditMinuteInput.value = activeMeetingBigEditDraft.minute;
     meetingBigEditNotesEditor.innerHTML = privacyMode ? anonymizeRichHtml(item.notesText, 'Meeting notes', item.id) : activeMeetingBigEditDraft.notesHtml;
+    if (meetingBigEditRecordedInput) meetingBigEditRecordedInput.checked = item.recorded === true;
     meetingBigEditTitleInput.disabled = privacyMode;
     meetingBigEditDateInput.disabled = privacyMode;
     meetingBigEditHourInput.disabled = privacyMode;
     meetingBigEditMinuteInput.disabled = privacyMode;
+    if (meetingBigEditRecordedInput) meetingBigEditRecordedInput.disabled = privacyMode;
     meetingBigEditNotesEditor.contentEditable = privacyMode ? 'false' : 'true';
     meetingBigEditModal.hidden = false;
     document.body.classList.add('big-edit-open');
     refreshBigEditBlurState();
-    if (!meetingBigEditHideBgToggle || meetingBigEditHideBgToggle.checked) {
-      document.body.classList.add('big-edit-obscure-background');
-    } else {
-      document.body.classList.remove('big-edit-obscure-background');
-    }
+    document.body.classList.add('big-edit-obscure-background');
     meetingBigEditTitleInput.focus();
   }
 
@@ -3828,11 +3916,13 @@
       meetingBigEditHourInput.value = activeMeetingBigEditDraft.hour;
       meetingBigEditMinuteInput.value = activeMeetingBigEditDraft.minute;
       meetingBigEditNotesEditor.innerHTML = activeMeetingBigEditDraft.notesHtml;
+      if (meetingBigEditRecordedInput) meetingBigEditRecordedInput.checked = activeMeetingBigEditDraft.recorded === true;
     }
     meetingBigEditTitleInput.disabled = false;
     meetingBigEditDateInput.disabled = false;
     meetingBigEditHourInput.disabled = false;
     meetingBigEditMinuteInput.disabled = false;
+    if (meetingBigEditRecordedInput) meetingBigEditRecordedInput.disabled = false;
     meetingBigEditNotesEditor.contentEditable = 'true';
     meetingBigEditModal.hidden = true;
     document.body.classList.remove('big-edit-open', 'big-edit-obscure-background');
@@ -3862,6 +3952,7 @@
     item.datetime = parsed.toISOString();
     item.notesHtml = notesHtml;
     item.notesText = notesText;
+    item.recorded = meetingBigEditRecordedInput?.checked === true;
     item.updatedAt = new Date().toISOString();
     item.draft = false;
     saveMeetings();
@@ -4170,6 +4261,12 @@
         dashboardTitle: currentState.ui?.dashboardTitle || importedState.ui?.dashboardTitle || DEFAULT_DASHBOARD_TITLE,
         personFilter: currentState.ui?.personFilter || importedState.ui?.personFilter || 'All',
         tagFilter: currentState.ui?.tagFilter || importedState.ui?.tagFilter || 'All',
+        searchQuery: {
+          general: currentState.ui?.searchQuery?.general || importedState.ui?.searchQuery?.general || '',
+          scheduling: currentState.ui?.searchQuery?.scheduling || importedState.ui?.searchQuery?.scheduling || '',
+          meetings: currentState.ui?.searchQuery?.meetings || importedState.ui?.searchQuery?.meetings || '',
+          generalNotes: currentState.ui?.searchQuery?.generalNotes || importedState.ui?.searchQuery?.generalNotes || '',
+        },
       },
       meetingNotesUIState: currentState.meetingNotesUIState || importedState.meetingNotesUIState || { collapsedMonths: {}, collapsedWeeks: {} },
       stateVersion: LATEST_STATE_VERSION,
@@ -4424,10 +4521,10 @@
     if (persistModalChanges()) closeModal(true);
   });
 
-  modalUrgencyBtn.addEventListener('click', () => {
+  bindPriorityDirectionControls(modalUrgencyBtn, (direction) => {
     const action = getActiveModalAction();
     if (!action || !activeModalContext || action.deleted) return;
-    cycleUrgency(action);
+    cycleUrgency(action, direction);
     queueMovedActionHighlight(activeModalContext.list, action);
     saveList(activeModalContext.list);
     modalStatus.textContent = modalStatusText(action);
@@ -4471,11 +4568,6 @@
   meetingBigEditClose.addEventListener('click', closeMeetingBigEdit);
   meetingBigEditCancel.addEventListener('click', closeMeetingBigEdit);
   meetingBigEditBackdrop.addEventListener('click', closeMeetingBigEdit);
-  if (meetingBigEditHideBgToggle) {
-    meetingBigEditHideBgToggle.addEventListener('change', () => {
-      document.body.classList.toggle('big-edit-obscure-background', meetingBigEditHideBgToggle.checked);
-    });
-  }
 
   bigTicketModalSave.addEventListener('click', () => {
     if (saveBigTicketModal()) closeBigTicketModal(true);
@@ -4571,6 +4663,23 @@
     });
   });
 
+  const searchDebounceTimers = {};
+  [
+    [generalSearchFilterInput, 'general'],
+    [schedulingSearchFilterInput, 'scheduling'],
+    [meetingSearchFilterInput, 'meetings'],
+    [generalNotesSearchFilterInput, 'generalNotes'],
+  ].forEach(([inputEl, key]) => {
+    if (!inputEl) return;
+    inputEl.value = uiState.searchQuery?.[key] || '';
+    inputEl.addEventListener('input', (event) => {
+      window.clearTimeout(searchDebounceTimers[key]);
+      const value = event.target.value || '';
+      searchDebounceTimers[key] = window.setTimeout(() => {
+        setSearchQuery(key, value);
+      }, 200);
+    });
+  });
 
   if (privacyToggleBtn) {
     privacyToggleBtn.addEventListener('click', () => setPrivacyMode(!privacyMode));
