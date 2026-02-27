@@ -315,6 +315,8 @@ body { margin: 0; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe 
 .filter-icon-label { display: inline-flex; align-items: center; justify-content: center; width: 1.25rem; height: 1.25rem; color: #64748b; }
 .filter-icon-label svg { width: 1rem; height: 1rem; stroke: currentColor; stroke-width: 1.9; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .person-filter-select { border: 1px solid var(--border); border-radius: 6px; padding: 0.16rem 0.3rem; font: inherit; font-size: 0.78rem; max-width: 8.2rem; }
+.filter-search-control { flex: 1; min-width: 8rem; }
+.filter-search-input { width: 100%; border: 1px solid var(--border); border-radius: 6px; padding: 0.16rem 0.35rem; font: inherit; font-size: 0.78rem; min-width: 8rem; }
 .person-filter-count { font-size: 0.75rem; color: #64748b; min-height: 1em; }
 .add-action-input-row { display: flex; align-items: flex-end; gap: 0.4rem; min-width: 0; }
 .add-action-form-stacked { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.25rem; align-items: initial; }
@@ -409,6 +411,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, [contentedita
 .meeting-summary-title { font-weight: 700; }
 .meeting-summary:hover, .meeting-summary:focus-visible { background: transparent; color: #1e40af; }
 .meeting-row { display: flex; align-items: center; gap: 0.35rem; }
+.meeting-recorded-indicator { font-size: 0.72rem; font-weight: 700; color: #334155; border: 1px solid #cbd5e1; border-radius: 999px; padding: 0.02rem 0.32rem; line-height: 1.1; }
 .meeting-row > .meeting-summary, .meeting-row > .general-note-summary { flex: 1; min-width: 0; }
 .general-note-whiteboard-indicator { color: #475569; font-size: 0.78rem; line-height: 1; flex: 0 0 auto; opacity: 0.9; }
 .row-quick-edit-btn { border: 0; background: transparent; color: #64748b; border-radius: 4px; padding: 0.1rem 0.28rem; font-size: 0.82rem; line-height: 1; flex: 0 0 auto; }
@@ -436,10 +439,10 @@ body.modal-open-blur .card-body { filter: blur(6px); opacity: 0.72; user-select:
 .modal-dialog { position: relative; width: min(640px, calc(100vw - 2rem)); max-height: 80vh; background: #fff; border-radius: 10px; padding: 0.9rem; border: 1px solid var(--border); display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 0.55rem; z-index: 1; }
 .big-edit-dialog { width: min(88vw, 1150px); min-width: min(88vw, 680px); height: min(66vh, 720px); max-height: 72vh; resize: both; overflow: auto; }
 .big-edit-dialog { display: flex; flex-direction: column; gap: 0.55rem; }
-.big-edit-header-row { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; padding-right: 2rem; }
+.big-edit-header-row { display: flex; align-items: center; justify-content: flex-start; gap: 0.6rem; padding-right: 2rem; }
 .big-edit-header-row h3 { margin: 0; }
-.big-edit-hide-bg-toggle { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.78rem; color: #334155; }
-.big-edit-hide-bg-toggle input { margin: 0; }
+.meeting-recorded-toggle { display: inline-flex; align-items: center; gap: 0.3rem; width: fit-content; font-size: 0.82rem; color: #334155; }
+.meeting-recorded-toggle input { margin: 0; }
 
 .meeting-big-edit-form { display: flex; flex-direction: column; gap: 0.45rem; min-height: 0; flex: 1; }
 .big-edit-dialog .meeting-big-edit-form { min-height: 0; }
@@ -555,6 +558,12 @@ body.modal-open-blur .card-body { filter: blur(6px); opacity: 0.72; user-select:
     font-size: 0.85rem;
     max-width: none;
     min-width: 6rem;
+  }
+
+  .filter-search-input {
+    font-size: 0.85rem;
+    min-height: 2.5rem;
+    min-width: 8rem;
   }
 
   .columns {
