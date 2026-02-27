@@ -220,20 +220,11 @@
   const signedOutMessage = document.getElementById('signed-out-message');
   const dashboardTitleEl = document.getElementById('dashboard-title');
   const dashboardDateEl = document.getElementById('dashboard-date');
-  const generalPersonFilterSelect = document.getElementById('general-person-filter');
-  const schedulingPersonFilterSelect = document.getElementById('scheduling-person-filter');
-  const generalTagFilterSelect = document.getElementById('general-tag-filter');
-  const schedulingTagFilterSelect = document.getElementById('scheduling-tag-filter');
-  const meetingPersonFilterSelect = document.getElementById('meeting-person-filter');
-  const meetingTagFilterSelect = document.getElementById('meeting-tag-filter');
-  const generalNotesPersonFilterSelect = document.getElementById('general-notes-person-filter');
-  const generalNotesTagFilterSelect = document.getElementById('general-notes-tag-filter');
-  const generalPersonCountEl = document.getElementById('general-person-filter-count');
-  const schedulingPersonCountEl = document.getElementById('scheduling-person-filter-count');
-  const generalSearchFilterInput = document.getElementById('general-search-filter');
-  const schedulingSearchFilterInput = document.getElementById('scheduling-search-filter');
-  const meetingSearchFilterInput = document.getElementById('meeting-search-filter');
-  const generalNotesSearchFilterInput = document.getElementById('general-notes-search-filter');
+  const globalFilterBar = document.getElementById('global-filter-bar');
+  const globalPersonFilterSelect = document.getElementById('global-person-filter');
+  const globalTagFilterSelect = document.getElementById('global-tag-filter');
+  const globalSearchFilterInput = document.getElementById('global-search-filter');
+  const globalFilterClearBtn = document.getElementById('global-filter-clear-btn');
 
   const settingsBtn = document.getElementById('cloud-settings-btn');
   const settingsModal = document.getElementById('settings-modal');
@@ -300,7 +291,7 @@
     dashboardTitle: DEFAULT_DASHBOARD_TITLE,
     personFilter: 'All',
     tagFilter: 'All',
-    searchQuery: { general: '', scheduling: '', meetings: '', generalNotes: '' },
+    searchQuery: '',
   };
 
   const appState = {
@@ -319,7 +310,7 @@
       dashboardTitle: DEFAULT_DASHBOARD_TITLE,
       personFilter: 'All',
       tagFilter: 'All',
-      searchQuery: { general: '', scheduling: '', meetings: '', generalNotes: '' },
+      searchQuery: '',
     },
     meetingNotesUIState: { collapsedMonths: {}, collapsedWeeks: {} },
     nextActionNumber: DEFAULT_NEXT_NUMBER,
@@ -679,7 +670,6 @@
     [
       [lists.general.actions, extractPersonTagsFromAction],
       [lists.scheduling.actions, extractPersonTagsFromAction],
-      [bigTicket.items, extractPersonTagsFromAction],
       [meeting.items, extractPersonTagsFromMeeting],
       [generalNotes.items, extractPersonTagsFromGeneralNote],
     ].forEach(([items, extractor]) => {
@@ -701,7 +691,6 @@
     [
       [lists.general.actions, extractHashTagsFromAction],
       [lists.scheduling.actions, extractHashTagsFromAction],
-      [bigTicket.items, extractHashTagsFromAction],
       [meeting.items, extractHashTagsFromMeeting],
       [generalNotes.items, extractHashTagsFromGeneralNote],
     ].forEach(([items, extractor]) => {
@@ -1182,13 +1171,10 @@
     uiState.tagFilter = typeof parsed?.tagFilter === 'string' && parsed.tagFilter.trim()
       ? parsed.tagFilter.trim()
       : 'All';
-    const searchQuery = parsed?.searchQuery && typeof parsed.searchQuery === 'object' ? parsed.searchQuery : {};
-    uiState.searchQuery = {
-      general: typeof searchQuery.general === 'string' ? searchQuery.general : '',
-      scheduling: typeof searchQuery.scheduling === 'string' ? searchQuery.scheduling : '',
-      meetings: typeof searchQuery.meetings === 'string' ? searchQuery.meetings : '',
-      generalNotes: typeof searchQuery.generalNotes === 'string' ? searchQuery.generalNotes : '',
-    };
+    const searchQuery = parsed?.searchQuery;
+    uiState.searchQuery = typeof searchQuery === 'string'
+      ? searchQuery
+      : (typeof searchQuery?.general === 'string' ? searchQuery.general : '');
     generalNotes.uiState.collapsedMonths = uiState.collapsedGeneralNotesMonths;
     applyTheme(uiState.theme.vars);
   }
@@ -1361,12 +1347,7 @@
       tagFilter: typeof baseState.ui.tagFilter === 'string' && baseState.ui.tagFilter.trim()
         ? baseState.ui.tagFilter.trim()
         : 'All',
-      searchQuery: {
-        general: typeof baseState.ui.searchQuery?.general === 'string' ? baseState.ui.searchQuery.general : '',
-        scheduling: typeof baseState.ui.searchQuery?.scheduling === 'string' ? baseState.ui.searchQuery.scheduling : '',
-        meetings: typeof baseState.ui.searchQuery?.meetings === 'string' ? baseState.ui.searchQuery.meetings : '',
-        generalNotes: typeof baseState.ui.searchQuery?.generalNotes === 'string' ? baseState.ui.searchQuery.generalNotes : '',
-      },
+      searchQuery: typeof baseState.ui.searchQuery === 'string' ? baseState.ui.searchQuery : '',
     };
 
     const highest = Math.max(DEFAULT_NEXT_NUMBER - 1, ...baseState.generalActions.map((i) => i.number), ...baseState.schedulingActions.map((i) => i.number));
@@ -1417,7 +1398,7 @@
       dashboardTitle: uiState.dashboardTitle,
       personFilter: uiState.personFilter || 'All',
       tagFilter: uiState.tagFilter || 'All',
-      searchQuery: { ...uiState.searchQuery },
+      searchQuery: typeof uiState.searchQuery === 'string' ? uiState.searchQuery : '',
     };
     appState.meetingNotesUIState = meeting.uiState;
     appState.nextActionNumber = nextActionNumber;
@@ -1612,6 +1593,9 @@
     if (signedOutMessage) {
       signedOutMessage.hidden = signedIn;
     }
+    if (globalFilterBar) {
+      globalFilterBar.hidden = !signedIn;
+    }
 
     if (!signedIn) {
       renderSignedOutState();
@@ -1645,7 +1629,7 @@
       dashboardTitle: DEFAULT_DASHBOARD_TITLE,
       personFilter: 'All',
       tagFilter: 'All',
-      searchQuery: { general: '', scheduling: '', meetings: '', generalNotes: '' },
+      searchQuery: '',
     },
       meetingNotesUIState: { collapsedMonths: {}, collapsedWeeks: {} },
       nextActionNumber: DEFAULT_NEXT_NUMBER,
@@ -1875,13 +1859,12 @@
     renderAll();
   }
 
-  function getSearchQuery(key) {
-    return typeof uiState.searchQuery?.[key] === 'string' ? uiState.searchQuery[key].trim().toLowerCase() : '';
+  function getSearchQuery() {
+    return typeof uiState.searchQuery === 'string' ? uiState.searchQuery.trim().toLowerCase() : '';
   }
 
-  function setSearchQuery(key, value) {
-    if (!uiState.searchQuery || typeof uiState.searchQuery !== 'object') uiState.searchQuery = { general: '', scheduling: '', meetings: '', generalNotes: '' };
-    uiState.searchQuery[key] = typeof value === 'string' ? value : '';
+  function setSearchQuery(value) {
+    uiState.searchQuery = typeof value === 'string' ? value : '';
     persistViewFilters();
     renderAll();
   }
@@ -1929,45 +1912,39 @@
 
     const effectivePerson = validPerson ? selectedPerson : 'All';
     const effectiveTag = validTag ? selectedTag : 'All';
-
-    [generalPersonFilterSelect, schedulingPersonFilterSelect, meetingPersonFilterSelect, generalNotesPersonFilterSelect].forEach((selectEl) => {
-      if (!selectEl) return;
-      selectEl.innerHTML = '';
+    if (globalPersonFilterSelect) {
+      globalPersonFilterSelect.innerHTML = '';
       const allOption = document.createElement('option');
       allOption.value = 'All';
-      allOption.textContent = 'All';
-      selectEl.appendChild(allOption);
+      allOption.textContent = 'All people';
+      globalPersonFilterSelect.appendChild(allOption);
       personTags.forEach((tag) => {
         const option = document.createElement('option');
         option.value = tag;
         option.textContent = tag;
-        selectEl.appendChild(option);
+        globalPersonFilterSelect.appendChild(option);
       });
       const selected = personTags.find((tag) => tag.toLowerCase() === effectivePerson.toLowerCase());
-      selectEl.value = effectivePerson === 'All' ? 'All' : (selected || 'All');
-    });
+      globalPersonFilterSelect.value = effectivePerson === 'All' ? 'All' : (selected || 'All');
+    }
 
-    [generalTagFilterSelect, schedulingTagFilterSelect, meetingTagFilterSelect, generalNotesTagFilterSelect].forEach((selectEl) => {
-      if (!selectEl) return;
-      selectEl.innerHTML = '';
+    if (globalTagFilterSelect) {
+      globalTagFilterSelect.innerHTML = '';
       const allOption = document.createElement('option');
       allOption.value = 'All';
-      allOption.textContent = 'All';
-      selectEl.appendChild(allOption);
+      allOption.textContent = 'All tags';
+      globalTagFilterSelect.appendChild(allOption);
       hashTags.forEach((tag) => {
         const option = document.createElement('option');
         option.value = tag;
         option.textContent = tag;
-        selectEl.appendChild(option);
+        globalTagFilterSelect.appendChild(option);
       });
       const selected = hashTags.find((tag) => tag.toLowerCase() === effectiveTag.toLowerCase());
-      selectEl.value = effectiveTag === 'All' ? 'All' : (selected || 'All');
-    });
-    if (generalSearchFilterInput) generalSearchFilterInput.value = uiState.searchQuery?.general || '';
-    if (schedulingSearchFilterInput) schedulingSearchFilterInput.value = uiState.searchQuery?.scheduling || '';
-    if (meetingSearchFilterInput) meetingSearchFilterInput.value = uiState.searchQuery?.meetings || '';
-    if (generalNotesSearchFilterInput) generalNotesSearchFilterInput.value = uiState.searchQuery?.generalNotes || '';
+      globalTagFilterSelect.value = effectiveTag === 'All' ? 'All' : (selected || 'All');
+    }
 
+    if (globalSearchFilterInput) globalSearchFilterInput.value = typeof uiState.searchQuery === 'string' ? uiState.searchQuery : '';
   }
 
   function renderList(list) {
@@ -1976,13 +1953,10 @@
     const selectedPerson = getSelectedPersonFilter();
     const selectedTag = getSelectedTagFilter();
     const useFilters = list.key === GENERAL_STORAGE_KEY || list.key === SCHEDULING_STORAGE_KEY;
-    const searchKey = list.key === GENERAL_STORAGE_KEY ? 'general' : 'scheduling';
-    const query = getSearchQuery(searchKey);
+    const query = getSearchQuery();
     const visible = useFilters
       ? ordered.filter((action) => actionHasPersonTag(action, selectedPerson) && actionHasHashTag(action, selectedTag) && textMatchesSearch(action.text, query))
       : ordered;
-    const totalCount = ordered.length;
-    const visibleCount = visible.length;
 
     if (!visible.length) {
       const empty = document.createElement('li');
@@ -1991,9 +1965,6 @@
         ? 'No actions yet. Add one to get started.'
         : 'No actions match the selected filters.';
       list.listEl.appendChild(empty);
-      const countLabel = useFilters && (selectedPerson !== 'All' || selectedTag !== 'All' || query) ? `Showing 0 of ${totalCount}` : '';
-      if (list.key === GENERAL_STORAGE_KEY && generalPersonCountEl) generalPersonCountEl.textContent = countLabel;
-      if (list.key === SCHEDULING_STORAGE_KEY && schedulingPersonCountEl) schedulingPersonCountEl.textContent = countLabel;
       return;
     }
 
@@ -2131,10 +2102,6 @@
       list.listEl.appendChild(li);
       if (!isGeneralList) requestAnimationFrame(() => updateRowTruncation(li));
     });
-
-    const countLabel = useFilters && (selectedPerson !== 'All' || selectedTag !== 'All' || query) ? `Showing ${visibleCount} of ${totalCount}` : '';
-    if (list.key === GENERAL_STORAGE_KEY && generalPersonCountEl) generalPersonCountEl.textContent = countLabel;
-    if (list.key === SCHEDULING_STORAGE_KEY && schedulingPersonCountEl) schedulingPersonCountEl.textContent = countLabel;
   }
 
   function meetingMatchesFilters(item) {
@@ -2145,7 +2112,7 @@
       || extractPersonTagsFromMeeting(item).some((tag) => tag.toLowerCase() === selectedPerson.toLowerCase());
     const tagMatches = selectedTag === 'All'
       || extractHashTagsFromMeeting(item).some((tag) => tag.toLowerCase() === selectedTag.toLowerCase());
-    const query = getSearchQuery('meetings');
+    const query = getSearchQuery();
     const searchMatches = textMatchesSearch(`${item.title} ${item.notesText}`, query);
     return personMatches && tagMatches && searchMatches;
   }
@@ -2153,7 +2120,7 @@
   function getFilteredMeetings() {
     const selectedPerson = getSelectedPersonFilter();
     const selectedTag = getSelectedTagFilter();
-    if (selectedPerson === 'All' && selectedTag === 'All' && !getSearchQuery('meetings')) return [...meeting.items];
+    if (selectedPerson === 'All' && selectedTag === 'All' && !getSearchQuery()) return [...meeting.items];
     return meeting.items.filter((item) => meetingMatchesFilters(item));
   }
 
@@ -2340,7 +2307,7 @@
     if (!filteredMeetings.length) {
       const empty = document.createElement('p');
       empty.className = 'meeting-empty';
-      empty.textContent = (selectedPerson !== 'All' || selectedTag !== 'All' || getSearchQuery('meetings'))
+      empty.textContent = (selectedPerson !== 'All' || selectedTag !== 'All' || getSearchQuery())
         ? 'No meetings match filter.'
         : 'No meeting notes yet. Add one to get started.';
       meeting.listEl.appendChild(empty);
@@ -2732,7 +2699,7 @@
       || extractPersonTagsFromGeneralNote(note).some((tag) => tag.toLowerCase() === selectedPerson.toLowerCase());
     const tagMatches = selectedTag === 'All'
       || extractHashTagsFromGeneralNote(note).some((tag) => tag.toLowerCase() === selectedTag.toLowerCase());
-    const query = getSearchQuery('generalNotes');
+    const query = getSearchQuery();
     const searchMatches = textMatchesSearch(`${note.title} ${note.text}`, query);
     return personMatches && tagMatches && searchMatches;
   }
@@ -2740,7 +2707,7 @@
   function getFilteredGeneralNotes() {
     const selectedPerson = getSelectedPersonFilter();
     const selectedTag = getSelectedTagFilter();
-    if (selectedPerson === 'All' && selectedTag === 'All' && !getSearchQuery('generalNotes')) return [...generalNotes.items];
+    if (selectedPerson === 'All' && selectedTag === 'All' && !getSearchQuery()) return [...generalNotes.items];
     return generalNotes.items.filter((note) => generalNoteMatchesFilters(note));
   }
 
@@ -2752,7 +2719,7 @@
     if (!filteredNotes.length) {
       const empty = document.createElement('p');
       empty.className = 'meeting-empty';
-      empty.textContent = (selectedPerson !== 'All' || selectedTag !== 'All' || getSearchQuery('generalNotes'))
+      empty.textContent = (selectedPerson !== 'All' || selectedTag !== 'All' || getSearchQuery())
         ? 'No general notes match filter.'
         : 'No general notes yet.';
       generalNotes.listEl.appendChild(empty);
@@ -4261,12 +4228,9 @@
         dashboardTitle: currentState.ui?.dashboardTitle || importedState.ui?.dashboardTitle || DEFAULT_DASHBOARD_TITLE,
         personFilter: currentState.ui?.personFilter || importedState.ui?.personFilter || 'All',
         tagFilter: currentState.ui?.tagFilter || importedState.ui?.tagFilter || 'All',
-        searchQuery: {
-          general: currentState.ui?.searchQuery?.general || importedState.ui?.searchQuery?.general || '',
-          scheduling: currentState.ui?.searchQuery?.scheduling || importedState.ui?.searchQuery?.scheduling || '',
-          meetings: currentState.ui?.searchQuery?.meetings || importedState.ui?.searchQuery?.meetings || '',
-          generalNotes: currentState.ui?.searchQuery?.generalNotes || importedState.ui?.searchQuery?.generalNotes || '',
-        },
+        searchQuery: typeof currentState.ui?.searchQuery === 'string'
+          ? currentState.ui.searchQuery
+          : (typeof importedState.ui?.searchQuery === 'string' ? importedState.ui.searchQuery : ''),
       },
       meetingNotesUIState: currentState.meetingNotesUIState || importedState.meetingNotesUIState || { collapsedMonths: {}, collapsedWeeks: {} },
       stateVersion: LATEST_STATE_VERSION,
@@ -4649,37 +4613,39 @@
     if (document.visibilityState === 'visible') scheduleFocusRefresh();
   });
 
-  [generalPersonFilterSelect, schedulingPersonFilterSelect, meetingPersonFilterSelect, generalNotesPersonFilterSelect].forEach((selectEl) => {
-    if (!selectEl) return;
-    selectEl.addEventListener('change', (event) => {
+  if (globalPersonFilterSelect) {
+    globalPersonFilterSelect.addEventListener('change', (event) => {
       setPersonFilter(event.target.value || 'All');
     });
-  });
+  }
 
-  [generalTagFilterSelect, schedulingTagFilterSelect, meetingTagFilterSelect, generalNotesTagFilterSelect].forEach((selectEl) => {
-    if (!selectEl) return;
-    selectEl.addEventListener('change', (event) => {
+  if (globalTagFilterSelect) {
+    globalTagFilterSelect.addEventListener('change', (event) => {
       setTagFilter(event.target.value || 'All');
     });
-  });
+  }
 
-  const searchDebounceTimers = {};
-  [
-    [generalSearchFilterInput, 'general'],
-    [schedulingSearchFilterInput, 'scheduling'],
-    [meetingSearchFilterInput, 'meetings'],
-    [generalNotesSearchFilterInput, 'generalNotes'],
-  ].forEach(([inputEl, key]) => {
-    if (!inputEl) return;
-    inputEl.value = uiState.searchQuery?.[key] || '';
-    inputEl.addEventListener('input', (event) => {
-      window.clearTimeout(searchDebounceTimers[key]);
+  let searchDebounceTimer = null;
+  if (globalSearchFilterInput) {
+    globalSearchFilterInput.value = typeof uiState.searchQuery === 'string' ? uiState.searchQuery : '';
+    globalSearchFilterInput.addEventListener('input', (event) => {
+      window.clearTimeout(searchDebounceTimer);
       const value = event.target.value || '';
-      searchDebounceTimers[key] = window.setTimeout(() => {
-        setSearchQuery(key, value);
+      searchDebounceTimer = window.setTimeout(() => {
+        setSearchQuery(value);
       }, 200);
     });
-  });
+  }
+
+  if (globalFilterClearBtn) {
+    globalFilterClearBtn.addEventListener('click', () => {
+      uiState.personFilter = 'All';
+      uiState.tagFilter = 'All';
+      uiState.searchQuery = '';
+      persistViewFilters();
+      renderAll();
+    });
+  }
 
   if (privacyToggleBtn) {
     privacyToggleBtn.addEventListener('click', () => setPrivacyMode(!privacyMode));

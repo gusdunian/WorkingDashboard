@@ -55,6 +55,33 @@ body { margin: 0; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe 
   letter-spacing: 0.01em;
 }
 
+
+.global-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  margin-top: 0.35rem;
+  max-width: min(100%, 38rem);
+}
+
+.global-filter-bar .person-filter-select {
+  min-width: 7.2rem;
+  max-width: 10.5rem;
+}
+
+.global-filter-bar .filter-search-input {
+  min-width: 12rem;
+  flex: 1;
+}
+
+.global-filter-clear-btn {
+  min-width: 1.9rem;
+  padding: 0.22rem 0.45rem;
+  margin-left: 0;
+  line-height: 1;
+}
+
 .cloud-panel {
   display: grid;
   justify-items: end;
@@ -308,8 +335,8 @@ body { margin: 0; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe 
 .action-input-buttons > .icon-btn { min-width: 2rem; padding: 0.25rem 0.45rem; }
 .action-format-filter-row { margin-top: 0.25rem; }
 
-.action-format-filter-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; min-width: 0; flex-wrap: nowrap; }
-.notes-format-filter-row { margin-top: 0.25rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; min-width: 0; flex-wrap: nowrap; }
+.action-format-filter-row { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.notes-format-filter-row { margin-top: 0.25rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; min-width: 0; }
 .toolbar-filter-group { display: inline-flex; align-items: center; justify-content: flex-end; gap: 0.45rem; margin-left: auto; flex-wrap: wrap; }
 .inline-filter-control { display: inline-flex; align-items: center; gap: 0.28rem; }
 .filter-icon-label { display: inline-flex; align-items: center; justify-content: center; width: 1.25rem; height: 1.25rem; color: #64748b; }
@@ -487,20 +514,14 @@ body.modal-open-blur .card-body { filter: blur(6px); opacity: 0.72; user-select:
 }
 
 @media (max-width: 760px) {
-  .action-format-filter-row,
-  .notes-format-filter-row {
-    align-items: flex-start;
-    flex-wrap: wrap;
+  .global-filter-bar {
+    align-items: stretch;
   }
 
-  .action-format-filter-row .rtf-toolbar,
-  .notes-format-filter-row .rtf-toolbar {
-    flex: 0 0 auto;
-  }
-
-  .toolbar-filter-group {
-    width: 100%;
-    justify-content: flex-end;
+  .global-filter-bar .person-filter-select,
+  .global-filter-bar .filter-search-input,
+  .global-filter-clear-btn {
+    min-height: 2.3rem;
   }
 }
 
@@ -564,6 +585,17 @@ body.modal-open-blur .card-body { filter: blur(6px); opacity: 0.72; user-select:
     font-size: 0.85rem;
     min-height: 2.5rem;
     min-width: 8rem;
+  }
+
+  .global-filter-bar .person-filter-select,
+  .global-filter-bar .filter-search-input {
+    width: 100%;
+    max-width: none;
+  }
+
+  .global-filter-clear-btn {
+    width: auto;
+    min-width: 2.5rem;
   }
 
   .columns {

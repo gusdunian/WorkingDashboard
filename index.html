@@ -22,6 +22,19 @@
           <span id="dashboard-title">Angus’ Working Dashboard</span>
         </h1>
         <p id="dashboard-date" class="banner-date" aria-label="Today&#39;s date"></p>
+        <div id="global-filter-bar" class="global-filter-bar" hidden>
+          <label class="visually-hidden" for="global-tag-filter">Filter by tag</label>
+          <select id="global-tag-filter" class="person-filter-select">
+            <option value="All">All tags</option>
+          </select>
+          <label class="visually-hidden" for="global-person-filter">Filter by person</label>
+          <select id="global-person-filter" class="person-filter-select">
+            <option value="All">All people</option>
+          </select>
+          <label class="visually-hidden" for="global-search-filter">Search all sections</label>
+          <input id="global-search-filter" class="filter-search-input" type="search" placeholder="Search…" aria-label="Search all sections" />
+          <button id="global-filter-clear-btn" type="button" class="subtle-button global-filter-clear-btn" aria-label="Clear all filters">×</button>
+        </div>
       </div>
       <section class="cloud-panel" aria-label="Cloud sync controls">
         <div class="cloud-controls">
@@ -94,35 +107,7 @@
                       <button type="button" data-command="insertUnorderedList" aria-label="Bulleted list">•</button>
                       <button type="button" data-command="insertOrderedList" aria-label="Numbered list">1.</button>
                     </div>
-                    <div class="toolbar-filter-group">
-                      <div class="inline-filter-control">
-                        <label for="general-tag-filter" class="filter-icon-label" aria-label="Tag filter">
-                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <path d="M20 13 11 4H4v7l9 9z" />
-                            <circle cx="7.5" cy="7.5" r="1" />
-                          </svg>
-                        </label>
-                        <select id="general-tag-filter" class="person-filter-select">
-                          <option value="All">All</option>
-                        </select>
-                      </div>
-                      <div class="inline-filter-control">
-                        <label for="general-person-filter" class="filter-icon-label" aria-label="Person filter">
-                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <circle cx="12" cy="8" r="3.5" />
-                            <path d="M5 20c.8-3.4 3.8-5.5 7-5.5s6.2 2.1 7 5.5" />
-                          </svg>
-                        </label>
-                        <select id="general-person-filter" class="person-filter-select">
-                          <option value="All">All</option>
-                        </select>
-                      </div>
-                      <div class="inline-filter-control filter-search-control">
-                        <input id="general-search-filter" class="filter-search-input" type="search" placeholder="Search" aria-label="Search actions" />
-                      </div>
-                    </div>
                   </div>
-                  <span id="general-person-filter-count" class="person-filter-count" aria-live="polite"></span>
                 </form>
               </div>
               <ul id="general-action-list" class="action-list" aria-label="General action items"></ul>
@@ -258,35 +243,7 @@
                       <button type="button" data-command="insertUnorderedList" aria-label="Bulleted list">•</button>
                       <button type="button" data-command="insertOrderedList" aria-label="Numbered list">1.</button>
                     </div>
-                    <div class="toolbar-filter-group">
-                      <div class="inline-filter-control">
-                        <label for="scheduling-tag-filter" class="filter-icon-label" aria-label="Tag filter">
-                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <path d="M20 13 11 4H4v7l9 9z" />
-                            <circle cx="7.5" cy="7.5" r="1" />
-                          </svg>
-                        </label>
-                        <select id="scheduling-tag-filter" class="person-filter-select">
-                          <option value="All">All</option>
-                        </select>
-                      </div>
-                      <div class="inline-filter-control">
-                        <label for="scheduling-person-filter" class="filter-icon-label" aria-label="Person filter">
-                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <circle cx="12" cy="8" r="3.5" />
-                            <path d="M5 20c.8-3.4 3.8-5.5 7-5.5s6.2 2.1 7 5.5" />
-                          </svg>
-                        </label>
-                        <select id="scheduling-person-filter" class="person-filter-select">
-                          <option value="All">All</option>
-                        </select>
-                      </div>
-                      <div class="inline-filter-control filter-search-control">
-                        <input id="scheduling-search-filter" class="filter-search-input" type="search" placeholder="Search" aria-label="Search scheduling actions" />
-                      </div>
-                    </div>
                   </div>
-                  <span id="scheduling-person-filter-count" class="person-filter-count" aria-live="polite"></span>
                 </form>
               </div>
               <ul id="scheduling-action-list" class="action-list" aria-label="Scheduling action items"></ul>
@@ -351,33 +308,6 @@
                       <button type="button" data-command="insertUnorderedList" aria-label="Bulleted list">•</button>
                       <button type="button" data-command="insertOrderedList" aria-label="Numbered list">1.</button>
                     </div>
-                    <div class="toolbar-filter-group">
-                      <div class="inline-filter-control">
-                        <label for="meeting-tag-filter" class="filter-icon-label" aria-label="Tag filter">
-                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <path d="M20 13 11 4H4v7l9 9z" />
-                            <circle cx="7.5" cy="7.5" r="1" />
-                          </svg>
-                        </label>
-                        <select id="meeting-tag-filter" class="person-filter-select">
-                          <option value="All">All</option>
-                        </select>
-                      </div>
-                      <div class="inline-filter-control">
-                        <label for="meeting-person-filter" class="filter-icon-label" aria-label="Person filter">
-                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <circle cx="12" cy="8" r="3.2" />
-                            <path d="M5.5 19c.8-3 3.4-5 6.5-5s5.7 2 6.5 5" />
-                          </svg>
-                        </label>
-                        <select id="meeting-person-filter" class="person-filter-select">
-                          <option value="All">All</option>
-                        </select>
-                      </div>
-                      <div class="inline-filter-control filter-search-control">
-                        <input id="meeting-search-filter" class="filter-search-input" type="search" placeholder="Search" aria-label="Search meeting notes" />
-                      </div>
-                    </div>
                     <button id="meeting-big-btn" type="button" class="subtle-button meeting-big-launch-btn" aria-label="Save draft and open big edit">BIG</button>
                   </div>
                   <button type="submit" aria-label="Add meeting">+</button>
@@ -425,33 +355,6 @@
                       <button type="button" data-command="underline" aria-label="Underline">U</button>
                       <button type="button" data-command="insertUnorderedList" aria-label="Bulleted list">•</button>
                       <button type="button" data-command="insertOrderedList" aria-label="Numbered list">1.</button>
-                    </div>
-                    <div class="toolbar-filter-group">
-                      <div class="inline-filter-control">
-                        <label for="general-notes-tag-filter" class="filter-icon-label" aria-label="Tag filter">
-                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <path d="M20 13 11 4H4v7l9 9z" />
-                            <circle cx="7.5" cy="7.5" r="1" />
-                          </svg>
-                        </label>
-                        <select id="general-notes-tag-filter" class="person-filter-select">
-                          <option value="All">All</option>
-                        </select>
-                      </div>
-                      <div class="inline-filter-control">
-                        <label for="general-notes-person-filter" class="filter-icon-label" aria-label="Person filter">
-                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <circle cx="12" cy="8" r="3.2" />
-                            <path d="M5.5 19c.8-3 3.4-5 6.5-5s5.7 2 6.5 5" />
-                          </svg>
-                        </label>
-                        <select id="general-notes-person-filter" class="person-filter-select">
-                          <option value="All">All</option>
-                        </select>
-                      </div>
-                      <div class="inline-filter-control filter-search-control">
-                        <input id="general-notes-search-filter" class="filter-search-input" type="search" placeholder="Search" aria-label="Search general notes" />
-                      </div>
                     </div>
                   </div>
                 </form>
