@@ -1,120 +1,88 @@
 # Operations
 
-## Deployment and runtime operations
+## 1) Deployment and promotion
 
-## GitHub Pages deployment settings
+- Integration branch: `dev`.
+- Production branch: `main`.
+- Standard release path:
+  1. Merge feature branches into `dev`.
+  2. Validate in `dev`.
+  3. Open `dev` → `main` PR.
+  4. Merge to `main` to trigger Pages deployment.
 
-- Use GitHub Pages with **Source = GitHub Actions**.
-- Deployment workflow: `.github/workflows/pages.yml`.
-- Trigger: push to `main`.
-- Artifact path: repository root (`path: .`).
+If Pages source mode is temporarily switched to a direct branch, restore the standard production source after release verification.
 
-## Branch deployment approach
+## 2) Runbook: dev → main merge conflicts
 
-- `dev` (or feature branches) are non-production validation branches.
-- `main` is production publish branch for Pages.
-- Promote by PR merge from feature/dev branch into `main`.
+When conflicts occur during promotion PR:
+1. Checkout `main` locally.
+2. Merge `dev` into `main`.
+3. For known generated/docs conflict patterns in this project, prefer **incoming (`dev`)** content unless there is a confirmed production-only hotfix to preserve.
+4. Re-run smoke checks.
+5. Commit conflict resolution and push.
 
-## Dev → main promotion checklist
+Minimal commands:
+- `git checkout main`
+- `git pull`
+- `git merge dev`
+- resolve files (`--theirs` where appropriate), commit, push.
 
-1. Confirm functional changes tested locally (desktop/mobile).
-2. Confirm multi-device sync behavior validated (at least two browser sessions).
-3. Confirm docs updated (`/docs` as needed).
-4. Confirm no secrets/private URLs introduced.
-5. Merge to `main`.
-6. Verify workflow run success in GitHub Actions.
-7. Verify GitHub Pages URL loads updated build.
-
-## Backup and recovery
-
-## Recommended backup cadence
-
-- Minimum: weekly export for active users.
-- Additional: immediate export before schema-impacting upgrades/import-overwrite operations.
-- Keep timestamped backups in secure local storage.
-
-## Restore via import
-
-- **Merge** restore:
-  - Use when appending/reconciling partial backups.
-  - Preserves most existing local UI settings and merges entities by number/id.
-- **Overwrite** restore:
-  - Use for full rollback to backup snapshot.
-  - Requires explicit confirmation dialog.
-
-## Post-restore verification
-
-1. Verify dashboard loads all expected cards and data.
-2. Verify `nextActionNumber` continued correctly (new action gets expected next number).
-3. Verify sync status reaches synced state.
-4. Trigger manual export to confirm recovered state serializes correctly.
-
-## Supabase table checks (`dashboard_state`)
-
-Perform these checks when diagnosing cloud persistence:
-- Row exists for authenticated `user_id`.
-- `state` column is valid JSON object with expected top-level keys.
-- `updated_at` advances after successful sync.
-- RLS policies restrict row to owner.
-
-## Incident playbooks
-
-## 1) Sync conflicts / blank-on-focus
+## 3) Runbook: “cloud updated elsewhere” loops
 
 Symptoms:
-- Data appears to revert or refresh after tab focus.
-- Warning toast indicates cloud updated elsewhere.
+- Repeated warning/toast about cloud being updated elsewhere.
 
-Actions:
-1. Confirm whether another device/session edited recently.
-2. Export current local state immediately.
-3. Allow focus refresh pull to complete.
-4. If needed, import exported backup via merge.
-5. Re-validate `updated_at` progression.
+Checks:
+1. Confirm multiple active devices/sessions.
+2. Verify local clock skew is not extreme.
+3. Inspect `dashboard_state.updated_at` progression in Supabase.
+4. Confirm local dirty writes are not continuously happening from a background mutation loop.
 
-## 2) Auth redirect/session failures
+Recovery:
+1. Export backup first.
+2. Stop edits on secondary devices.
+3. Reload primary tab; allow pull-from-cloud to complete.
+4. Make one test edit; verify single successful sync.
 
-Symptoms:
-- `Auth state failed` status.
-- Sign-in appears successful but app remains signed out.
+## 4) Cache-busting guidance
 
-Actions:
-1. Verify Supabase Auth allowed redirect origins include current Pages URL.
-2. Confirm browser allows storage/cookies for the site.
-3. Sign out/in and inspect status messages.
-4. Check Supabase project auth logs for rejected sessions.
+Use in this order:
+1. Hard refresh browser tab.
+2. Clear service/static cache for the site origin.
+3. Confirm latest `main` deployment completed successfully.
+4. Re-open in an incognito/private window to verify asset freshness.
 
-## 3) Import validation failures
+If users still see stale UI after deployment, compare loaded asset hashes/timestamps in devtools network panel.
 
-Symptoms:
-- `Import failed: invalid backup format.`
+## 5) Import reliability runbook
 
-Actions:
-1. Confirm JSON is parseable.
-2. Confirm payload has wrapper with `state` object.
-3. Confirm no manual edits corrupted structure.
-4. Retry with known-good export file.
+Guardrails implemented:
+- Import acquires app-level import lock (`importInProgress`).
+- While locked, autosync and refresh paths are suppressed to avoid races.
 
-## Repo rename procedure (safe)
+Operational steps:
+1. Export backup before import.
+2. Choose mode:
+   - `overwrite`: replace everything after confirmation.
+   - `merge`: merge by stable IDs/numbers.
+3. Wait for import + sync completion status.
+4. Verify critical entities in UI and cloud row.
 
-When renaming repository:
+If cloud sync conflicts during import, local import is retained and user is prompted to retry cloud sync.
 
-1. Update GitHub Pages expected URL and verify deployment target path.
-2. Update Supabase Auth redirect allowlist to include new Pages URL.
-3. Validate sign-in session callback using new URL.
-4. Validate backup import/export still works under renamed site path.
-5. Purge stale favicon and static asset cache in browser when validating rename.
+## 6) Recovery workflow (backup + restore)
 
-## Routine operations runbook
+1. Export latest backup JSON.
+2. Preserve problematic snapshot for audit.
+3. Re-import known-good backup using overwrite mode.
+4. Confirm sync success.
+5. Validate row in Supabase (`dashboard_state.state`, `updated_at`).
+6. Perform a small edit and verify subsequent autosync.
 
-Daily/regular:
-- Review sync status behavior after edits.
-- Ensure no persistent warning/error toasts.
+## 7) Routine operational checks
 
-Weekly:
-- Perform backup export.
-- Verify Pages deployment health on last merged change.
-
-Before release:
-- Run complete promotion checklist.
-- Confirm docs/changelog updates.
+- Auth sign-in/out path works.
+- Header status updates without persistent duplicate status widgets.
+- Local-first boot works offline/slow-network.
+- Focus-return cloud refresh works without overwrite conflicts.
+- Import/export roundtrip remains valid JSON and migrates cleanly.

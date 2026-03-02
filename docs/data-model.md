@@ -1,8 +1,8 @@
 # Data Model
 
-## Canonical persisted object
+This document defines the canonical JSON persisted in `dashboard_state.state`.
 
-The canonical payload stored in `dashboard_state.state` is a JSON object with this top-level shape:
+## 1) Canonical root schema
 
 ```json
 {
@@ -10,250 +10,111 @@ The canonical payload stored in `dashboard_state.state` is a JSON object with th
   "generalActions": [],
   "personalActions": [],
   "schedulingActions": [],
-  "bigTicketItems": [],
   "meetingNotes": [],
+  "bigTicketItems": [],
   "generalNotes": [],
   "ui": {
     "collapsedCards": {},
+    "cardLayout": { "columns": [[], []] },
     "collapsedGeneralNotesMonths": {},
-    "cardLayout": { "columns": [] },
     "theme": {
-      "presetName": "Office Blue",
+      "presetName": "Office Blue | Office Green | Office Gray | Custom",
       "vars": {
-        "bannerBg": "#...",
-        "bannerFg": "#...",
-        "pageBg": "#...",
-        "cardHeaderBg": "#...",
-        "cardHeaderFg": "#..."
+        "--banner-bg": "#...",
+        "--banner-fg": "#...",
+        "--page-bg": "#...",
+        "--card-header-bg": "#...",
+        "--card-header-fg": "#..."
       }
     },
-    "dashboardTitle": "...",
-    "personFilter": "All",
-    "tagFilter": "All"
+    "dashboardTitle": "string",
+    "personFilter": "All | @token",
+    "tagFilter": "All | #token",
+    "searchQuery": "string"
   },
   "meetingNotesUIState": {
     "collapsedMonths": {},
     "collapsedWeeks": {}
   },
-  "nextActionNumber": 137
+  "nextActionNumber": 1
 }
 ```
 
-## Top-level fields
+Notes:
+- `ui.cardLayout` is authoritative for card column/order placement.
+- `ui.theme.vars` is scoped to theme variables used by banner/page/card-header surfaces.
+- `personFilter` / `tagFilter` / `searchQuery` are global filters.
 
-### `stateVersion` (number, required)
+## 2) Entity contracts
 
-- Current constant: `LATEST_STATE_VERSION = 12`.
-- Must be positive integer.
-- Migrator upgrades lower versions to latest.
+## Actions (`generalActions`, `schedulingActions`, `personalActions`)
 
-### `generalActions` (array<ActionItem>, required)
+Common fields:
+- `text`, `html`, `html_inline`
+- `createdAt`, `updatedAt`
+- `completed`, `completedAt`
+- `deleted`, `deletedAt`
+- `archived` (soft-delete marker used by CC workflows)
+- `urgencyLevel`
+- `timingFlag` (`T`, `D`, or `null`)
 
-- Numbered actionable list.
-- Supports completion/deletion/archive, urgency and timing metadata.
+Identity:
+- General/scheduling use stable numeric `number`.
+- Personal actions use generated string `id`.
 
-### `personalActions` (array<PersonalActionItem>, required)
+### Archived semantics (CC)
 
-- Unnumbered personal task list.
-- Same action semantics except uses `id` instead of `number`.
+`archived: true` is a soft-delete style retention flag used when items are cleared from active UI flow but intentionally retained in persisted state history.
 
-### `schedulingActions` (array<ActionItem>, required)
+## Meeting notes (`meetingNotes`)
 
-- Numbered scheduling-focused task list.
-- Shared schema and ordering semantics with `generalActions`.
+Fields:
+- `id`, `title`, `datetime`
+- `notesHtml`, `notesText` (sanitized + plain text projection)
+- `createdAt`, `updatedAt`
+- `draft` (temporary draft record)
+- `recorded` (boolean; UI renders `R` indicator)
 
-### `bigTicketItems` (array<BigTicketItem>, required)
+### `%123%` / `%123` action reference behaviour
 
-- Prioritized rich-text items for larger initiatives.
+Meeting/general rich text supports action shortcut token parsing during editing.
+When `%<number>%` (and accepted shorthand token forms) resolves to an existing action number, the editor injects a prefixed action reference line and removes the shortcut token.
+Unresolved tokens remain plain text and surface a transient warning.
 
-### `meetingNotes` (array<MeetingNote>, required)
+## General notes (`generalNotes`)
 
-- Meeting entries with title, datetime, and rich notes.
+Fields:
+- `id`, `date`, `title`
+- `html`, `html_inline`, `text`
+- `createdAt`, `updatedAt`
+- `whiteboardDataUrl` (`data:image/...` snapshot or `null`)
+- `whiteboardMeta` (optional object)
+- `whiteboardImages` (optional placed image list with id/x/y/w/h/dataUrl)
 
-### `generalNotes` (array<GeneralNote>, required)
+## Big ticket (`bigTicketItems`)
 
-- Dated general notes with rich text and optional whiteboard snapshot.
+Fields:
+- `id`, `text`, `html`, `html_inline`
+- `urgencyLevel`, `timingFlag`
+- `createdAt`, `updatedAt`
 
-### `ui` (object, required)
+## 3) Migration contract (`stateVersion` / `migrateState`)
 
-- Persisted presentation + navigation state.
+- `LATEST_STATE_VERSION` is `12`.
+- All reads pass through `migrateState(raw)` before use.
+- All writes persist migrated/normalized state.
+- Migration is additive/normalizing:
+  - fills missing collections/objects,
+  - normalizes rich text and derived plain-text fields,
+  - normalizes `ui.cardLayout` to valid known cards,
+  - normalizes theme + filters + title defaults,
+  - normalizes archived and timing/urgency compatibility fields.
 
-### `meetingNotesUIState` (object, required)
+Expectation: callers do **not** consume un-migrated state directly.
 
-- Persisted collapses for month/week meeting groups.
+## 4) Import/export expectations
 
-### `nextActionNumber` (number, required)
-
-- Next integer assigned for new numbered action in general/scheduling lists.
-- Recomputed when needed to remain > highest existing numbered action.
-
-## Entity definitions (field-by-field)
-
-## `ActionItem` (`generalActions`, `schedulingActions`)
-
-- `number` (integer, required): stable action identifier.
-- `text` (string, required derived): plain text projection of rich content.
-- `html` (string, required): sanitized rich HTML.
-- `html_inline` (string, required): sanitized inline-safe HTML projection.
-- `createdAt` (number epoch ms, required).
-- `updatedAt` (number epoch ms, required).
-- `completed` (boolean, required).
-- `deleted` (boolean, required).
-- `archived` (boolean, required): hides from visible list but retained in state.
-- `urgencyLevel` (integer, required): `0` normal, `1` urgent, `2` super urgent, `3` low.
-- `timingFlag` (string|null, required): `"T"` (time-dependent), `"D"` (delegated), or `null`.
-- `completedAt` (number|null, optional): set when marked completed.
-- `deletedAt` (number|null, optional): set when marked deleted.
-
-## `PersonalActionItem` (`personalActions`)
-
-Same as `ActionItem`, except:
-- `id` (string, required) replaces `number`.
-- `idPrefix` convention is `pact-...`.
-
-## `BigTicketItem`
-
-- `id` (string, required).
-- `text` (string, required derived).
-- `html` (string, required).
-- `html_inline` (string, required).
-- `urgencyLevel` (integer, required): same scale as actions.
-- `timingFlag` (string|null, required): `T`, `D`, or null.
-- `createdAt` (number epoch ms, required).
-- `updatedAt` (number epoch ms, required).
-- `whiteboardDataUrl` (string|null, optional): `data:image/...` snapshot when present.
-- `whiteboardMeta` (object|null, optional): canvas metadata (e.g., width/height/updatedAt).
-
-## `MeetingNote`
-
-- `id` (string, required).
-- `title` (string, required).
-- `datetime` (string ISO datetime, required).
-- `notesHtml` (string, required): sanitized rich HTML.
-- `notesText` (string, required derived): plain text projection.
-- `createdAt` (string ISO datetime | null, optional).
-- `updatedAt` (string ISO datetime | null, optional).
-
-## `GeneralNote`
-
-- `id` (string, required).
-- `date` (string `YYYY-MM-DD`, required).
-- `title` (string, required).
-- `html` (string, required): sanitized rich HTML.
-- `html_inline` (string, required).
-- `text` (string, required derived).
-- `createdAt` (number epoch ms, required).
-- `updatedAt` (number epoch ms, required).
-- `whiteboardDataUrl` (string|null, optional): must start with `data:image/` when present.
-- `whiteboardMeta` (object|null, optional).
-
-## `ui` object fields
-
-- `collapsedCards` (object map, required):
-  - keys: `generalActions`, `personalActions`, `bigTicket`, `scheduling`, `meetingNotes`, `generalNotes`.
-  - values: boolean collapsed state.
-- `collapsedGeneralNotesMonths` (object map, required): month key -> boolean.
-- `cardLayout` (object, required):
-  - `columns` (array of arrays of card IDs).
-- `theme` (object, required):
-  - `presetName` (string; one preset or `Custom`).
-  - `vars` (object): `bannerBg`, `bannerFg`, `pageBg`, `cardHeaderBg`, `cardHeaderFg`.
-- `dashboardTitle` (string, required).
-- `personFilter` (string, required): selected global people filter or `All`.
-- `tagFilter` (string, required): selected global tag filter or `All`.
-
-## `meetingNotesUIState` fields
-
-- `collapsedMonths` (object map): month key -> boolean.
-- `collapsedWeeks` (object map): composite week key -> boolean.
-
-## Soft-delete and archive semantics
-
-- `completed=true`: action is completed; rendered in completed bucket.
-- `deleted=true`: action is deleted (soft delete); rendered in deleted bucket.
-- `archived=true`: action removed from visible ordering across all buckets, retained in data.
-- `CC` clear-completed behavior:
-  - completed/deleted rows are not hard-deleted.
-  - they are marked/transitioned out of active display via archive logic; historical metadata stays available.
-
-## State versioning and migrations
-
-## Version constants
-
-- `LATEST_STATE_VERSION` is authoritative latest schema version.
-- Any persisted state with lower version must pass through `migrateState` before use.
-
-## `migrateState` contract
-
-Input:
-- arbitrary object (possibly partial, legacy, malformed fields).
-
-Output:
-- fully normalized state object at latest version with defaults.
-
-Required behaviors:
-- sanitize and normalize all entities.
-- guarantee required top-level keys exist.
-- normalize `ui` and layout structure.
-- clamp urgency/timing fields to supported values.
-- reconcile `nextActionNumber` with existing numbered actions.
-
-## Backward compatibility rules
-
-- Older payloads are accepted and upgraded in place (non-throwing where possible).
-- Legacy fields are mapped when known (`timeDependent` -> `timingFlag`, etc.).
-- Unknown fields may be ignored by normalizers.
-- Persisted writes always store latest version.
-
-## Import/export formats
-
-## Wrapper format
-
-All backups use:
-
-```json
-{
-  "exportedAt": "ISO-8601",
-  "stateVersion": 12,
-  "state": { "...canonical dashboard state...": "..." }
-}
-```
-
-## Import modes
-
-- `Merge`:
-  - Numbered actions merged by `number` (dedupe map).
-  - ID-based entities merged by `id` (imported item replaces on key collision).
-  - UI preference fields prefer current/local when present.
-- `Overwrite`:
-  - Replace entire state snapshot after confirmation.
-
-## Numbering reconciliation rules
-
-- `computeNextActionNumber` scans `generalActions.number` and `schedulingActions.number`.
-- Next number = `max(existingNumbers, DEFAULT_NEXT_NUMBER-1) + 1`.
-- Imported or merged numbered rows are normalized before number extraction.
-
-## Rich text storage and sanitization
-
-## Stored representations
-
-- `html` / `notesHtml`: canonical sanitized rich text.
-- `html_inline`: inline projection for compact row rendering.
-- `text` / `notesText`: plain text derivation for validation, filtering, and privacy rendering.
-
-## Derivation rules
-
-- `text` derives from rich HTML using DOM textContent normalization and whitespace collapse.
-- `html_inline` derives from rich HTML projection preserving supported formatting and list markers.
-- Empty plain text after sanitization invalidates note/action creation.
-
-## Sanitization allowlist
-
-Allowed tags only:
-- `B`, `STRONG`, `I`, `EM`, `U`, `BR`, `P`, `UL`, `OL`, `LI`
-
-Rules:
-- disallowed elements are stripped while preserving child text content.
-- attributes are not preserved by sanitizer reconstruction.
-- resulting HTML is trimmed before storage.
+- Export payload contains `exportedAt`, `stateVersion`, and `state`.
+- Import path migrates incoming state first.
+- `overwrite` mode replaces full snapshot after confirmation.
+- `merge` mode merges by stable identity and recomputes `nextActionNumber`.
