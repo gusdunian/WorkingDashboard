@@ -354,6 +354,8 @@
   let transientStatusTimer = null;
   let lastTransientStatusMessage = '';
   let lastTransientStatusShownAt = 0;
+  let lastCloudEntrypointErrorKey = '';
+  let lastCloudEntrypointErrorAt = 0;
 
   const lists = {
     general: {
@@ -403,6 +405,9 @@
   const dictationState = { recognition: null, button: null, defaultTarget: null, fallbackTarget: null };
   let activeMeetingBigEditId = null;
   let activeMeetingBigEditDraft = null;
+  let activeMeetingBigEditDirtySince = null;
+  let meetingBigEditAutosaveTimer = null;
+  let cardMoveDelegatedBound = false;
   let activeGeneralNoteBigEditId = null;
   let activeGeneralNoteBigEditDraft = null;
   let isAuthenticated = false;
@@ -1562,6 +1567,17 @@
     }
   }
 
+  function reportCloudEntrypointError(prefix, error) {
+    const message = error instanceof Error ? error.message : String(error || 'Unknown error');
+    const dedupeKey = `${prefix}:${message}`;
+    const now = Date.now();
+    if (dedupeKey === lastCloudEntrypointErrorKey && now - lastCloudEntrypointErrorAt < 1500) return;
+    lastCloudEntrypointErrorKey = dedupeKey;
+    lastCloudEntrypointErrorAt = now;
+    console.error(`[cloud] ${prefix}`, error);
+    setStatus(`${prefix}: ${message}`, 'error', { toast: false });
+  }
+
   function showTransientStatus(message, type = 'info', durationMs = 3000) {
     if (!message) return;
     const now = Date.now();
@@ -2558,7 +2574,7 @@
       controls.forEach(({ action, symbol, label }) => {
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = 'card-reorder-btn';
+        button.className = 'card-reorder-btn card-move-btn';
         button.dataset.cardMove = action;
         button.dataset.cardId = cardId;
         button.textContent = symbol;
@@ -2583,27 +2599,43 @@
         up: card.querySelector('[data-card-move="up"]'),
         down: card.querySelector('[data-card-move="down"]'),
       };
-      if (buttonMap.left) buttonMap.left.disabled = isMobile || position.columnIndex === 0;
-      if (buttonMap.right) buttonMap.right.disabled = isMobile || position.columnIndex === uiState.cardLayout.columns.length - 1;
-      if (buttonMap.up) buttonMap.up.disabled = position.cardIndex === 0;
-      if (buttonMap.down) buttonMap.down.disabled = position.cardIndex === column.length - 1;
+      const disableLeft = isMobile || position.columnIndex === 0;
+      const disableRight = isMobile || position.columnIndex === uiState.cardLayout.columns.length - 1;
+      const disableUp = position.cardIndex === 0;
+      const disableDown = position.cardIndex === column.length - 1;
+      if (buttonMap.left) {
+        buttonMap.left.disabled = disableLeft;
+        buttonMap.left.hidden = disableLeft;
+      }
+      if (buttonMap.right) {
+        buttonMap.right.disabled = disableRight;
+        buttonMap.right.hidden = disableRight;
+      }
+      if (buttonMap.up) {
+        buttonMap.up.disabled = disableUp;
+        buttonMap.up.hidden = disableUp;
+      }
+      if (buttonMap.down) {
+        buttonMap.down.disabled = disableDown;
+        buttonMap.down.hidden = disableDown;
+      }
     });
   }
 
   function bindCardReorderEvents() {
-    document.querySelectorAll('[data-card-reorder-group]').forEach((group) => {
-      if (group.dataset.bound === 'true') return;
-      group.dataset.bound = 'true';
-      group.addEventListener('click', (event) => {
-        const button = event.target.closest('[data-card-move]');
-        if (!button || button.disabled) return;
-        const { cardId } = button.dataset;
-        const move = button.dataset.cardMove;
-        if (move === 'left') moveCardAcrossColumns(cardId, -1);
-        if (move === 'right') moveCardAcrossColumns(cardId, 1);
-        if (move === 'up') moveCardWithinColumn(cardId, -1);
-        if (move === 'down') moveCardWithinColumn(cardId, 1);
-      });
+    if (cardMoveDelegatedBound) return;
+    cardMoveDelegatedBound = true;
+    document.addEventListener('click', (event) => {
+      const button = event.target.closest('.card-move-btn[data-card-move]');
+      if (!button || button.disabled) return;
+      const card = button.closest('.collapsible-card[data-card-id]');
+      const cardId = card?.dataset.cardId || button.dataset.cardId;
+      if (!cardId) return;
+      const move = button.dataset.cardMove;
+      if (move === 'left') moveCardAcrossColumns(cardId, -1);
+      if (move === 'right') moveCardAcrossColumns(cardId, 1);
+      if (move === 'up') moveCardWithinColumn(cardId, -1);
+      if (move === 'down') moveCardWithinColumn(cardId, 1);
     });
   }
 
@@ -2965,15 +2997,7 @@
           whiteboardIndicator.textContent = '🖊';
           row.append(summary, whiteboardIndicator, quickEditBtn);
         } else {
-          if (item.recorded) {
-            const recordedIndicator = document.createElement('span');
-            recordedIndicator.className = 'meeting-recorded-indicator';
-            recordedIndicator.textContent = 'R';
-            recordedIndicator.title = 'Recorded';
-            row.append(summary, recordedIndicator, quickEditBtn);
-          } else {
-            row.append(summary, quickEditBtn);
-          }
+          row.append(summary, quickEditBtn);
         }
         li.appendChild(row);
 
@@ -4037,6 +4061,11 @@
       notesHtml: item.notesHtml,
       recorded: item.recorded === true,
     };
+    activeMeetingBigEditDirtySince = null;
+    if (meetingBigEditAutosaveTimer) {
+      window.clearTimeout(meetingBigEditAutosaveTimer);
+      meetingBigEditAutosaveTimer = null;
+    }
     meetingBigEditTitleInput.value = privacyMode ? anonymizeText(item.title, 'Meeting', item.id) : item.title;
     meetingBigEditDateInput.value = dateToDateValue(date);
     meetingBigEditHourInput.value = activeMeetingBigEditDraft.hour;
@@ -4078,6 +4107,11 @@
     refreshBigEditBlurState();
     activeMeetingBigEditId = null;
     activeMeetingBigEditDraft = null;
+    activeMeetingBigEditDirtySince = null;
+    if (meetingBigEditAutosaveTimer) {
+      window.clearTimeout(meetingBigEditAutosaveTimer);
+      meetingBigEditAutosaveTimer = null;
+    }
 
     const draftItem = getMeetingById(draftId);
     if (draftItem && draftItem.draft && !draftItem.notesText.trim() && !draftItem.title.trim()) {
@@ -4105,8 +4139,64 @@
     item.updatedAt = new Date().toISOString();
     item.draft = false;
     saveMeetings();
+    activeMeetingBigEditDirtySince = null;
     renderMeetings();
     return true;
+  }
+
+  function collectMeetingBigEditDraft() {
+    const title = meetingBigEditTitleInput.value.trim();
+    const dateValue = meetingBigEditDateInput.value;
+    const timeValue = buildTimeValue(meetingBigEditHourInput.value, meetingBigEditMinuteInput.value);
+    const parsed = parseLocalDateTime(dateValue, timeValue);
+    const notesHtml = sanitizeRichHtml(meetingBigEditNotesEditor.innerHTML);
+    return {
+      title,
+      datetime: parsed ? parsed.toISOString() : null,
+      notesHtml,
+      notesText: htmlToPlainText(notesHtml),
+      recorded: meetingBigEditRecordedInput?.checked === true,
+    };
+  }
+
+  function autosaveMeetingBigEditDraft() {
+    if (privacyMode || !activeMeetingBigEditId) return;
+    const item = getMeetingById(activeMeetingBigEditId);
+    if (!item) return;
+    const draft = collectMeetingBigEditDraft();
+    if (!draft.title || !draft.datetime) return;
+    item.title = draft.title;
+    item.datetime = draft.datetime;
+    item.notesHtml = draft.notesHtml;
+    item.notesText = draft.notesText;
+    item.recorded = draft.recorded;
+    item.updatedAt = new Date().toISOString();
+    saveMeetings();
+    showTransientStatus('Saved', 'success', 1200);
+  }
+
+  function scheduleMeetingBigEditAutosave() {
+    if (privacyMode || !activeMeetingBigEditId) return;
+    activeMeetingBigEditDirtySince = activeMeetingBigEditDirtySince || Date.now();
+    showTransientStatus('Saving…', 'info', 900);
+    if (meetingBigEditAutosaveTimer) window.clearTimeout(meetingBigEditAutosaveTimer);
+    meetingBigEditAutosaveTimer = window.setTimeout(() => {
+      meetingBigEditAutosaveTimer = null;
+      autosaveMeetingBigEditDraft();
+    }, 1000);
+  }
+
+  function attemptCloseMeetingBigEdit() {
+    if (activeMeetingBigEditDirtySince) {
+      const closeAnyway = window.confirm('You have unsaved changes. Close anyway?');
+      if (!closeAnyway) return;
+      if (meetingBigEditAutosaveTimer) {
+        window.clearTimeout(meetingBigEditAutosaveTimer);
+        meetingBigEditAutosaveTimer = null;
+      }
+      autosaveMeetingBigEditDraft();
+    }
+    closeMeetingBigEdit();
   }
 
 
@@ -4254,7 +4344,7 @@
     autosyncTimer = window.setTimeout(() => {
       autosyncTimer = null;
       runAutosync().catch((error) => {
-        setStatus(`Sync failed: ${error.message}`, 'error');
+        reportCloudEntrypointError('Sync failed', error);
       });
     }, AUTOSYNC_DEBOUNCE_MS);
   }
@@ -4267,7 +4357,7 @@
       autosyncTimer = null;
     }
     runAutosync().catch((error) => {
-      setStatus(`Sync failed: ${error.message}`, 'error');
+      reportCloudEntrypointError('Sync failed', error);
     });
   }
 
@@ -4288,6 +4378,8 @@
       }
       if (!autosyncPending) {
         }
+    } catch (error) {
+      reportCloudEntrypointError('Sync failed', error);
     } finally {
       autosyncInFlight = false;
       setSyncIndicator(false);
@@ -4308,6 +4400,9 @@
         ? 'Cloud updated elsewhere — reloaded latest to avoid overwriting.'
         : 'Updated from another device', recentDirty ? 'warning' : 'info');
       return true;
+    } catch (error) {
+      reportCloudEntrypointError('Sync failed', error);
+      return false;
     } finally {
       cloud.refreshInFlight = false;
       setSyncIndicator(false);
@@ -4321,7 +4416,7 @@
     cloud.focusRefreshTimer = window.setTimeout(() => {
       cloud.focusRefreshTimer = null;
       refreshFromCloudIfNewer().catch((error) => {
-        setStatus(`Sync error: ${error.message}`, 'error');
+        reportCloudEntrypointError('Sync failed', error);
       });
     }, FOCUS_SYNC_DEBOUNCE_MS);
   }
@@ -4469,45 +4564,53 @@
   }
 
   async function handleAuthStateChange(event, session) {
-    cloud.signedInUser = session?.user || null;
-    applyAuthUiState({ deferRender: event === 'SIGNED_IN' || event === 'INITIAL_SESSION' });
+    try {
+      cloud.signedInUser = session?.user || null;
+      applyAuthUiState({ deferRender: event === 'SIGNED_IN' || event === 'INITIAL_SESSION' });
 
-    if (!cloud.signedInUser) {
-      autosyncPending = false;
-      if (autosyncTimer) {
-        window.clearTimeout(autosyncTimer);
-        autosyncTimer = null;
-      }
-      setLoading(false);
-      if (event === 'SIGNED_OUT') {
-        setStatus('Signed out', 'info', { toast: false });
-      }
-      return;
-    }
-
-    if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-      hydrateFromLocalCacheAndRender();
-      setLoading(false);
-
-      await refreshFromCloudIfNewer({ reason: 'auth' });
-
-      const row = await fetchCloudStateRow(cloud.signedInUser.id);
-      if (row && row.state) {
-        if (!cloud.lastCloudUpdatedAt || isCloudNewerThanLastKnown(row.updated_at)) {
-          setLocalDashboardState(row.state);
+      if (!cloud.signedInUser) {
+        autosyncPending = false;
+        if (autosyncTimer) {
+          window.clearTimeout(autosyncTimer);
+          autosyncTimer = null;
         }
-        markLastSynced(new Date().toISOString(), row.updated_at || new Date().toISOString());
-      } else {
-        const defaultState = emptyDashboardState();
-        setLocalDashboardState(defaultState);
-        await pushCloudState({ silentSuccess: true });
+        setLoading(false);
+        if (event === 'SIGNED_OUT') {
+          setStatus('Signed out', 'info', { toast: false });
+        }
+        return;
       }
+
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        hydrateFromLocalCacheAndRender();
+        setLoading(false);
+
+        await refreshFromCloudIfNewer({ reason: 'auth' });
+
+        const row = await fetchCloudStateRow(cloud.signedInUser.id);
+        if (row && row.state) {
+          if (!cloud.lastCloudUpdatedAt || isCloudNewerThanLastKnown(row.updated_at)) {
+            setLocalDashboardState(row.state);
+          }
+          markLastSynced(new Date().toISOString(), row.updated_at || new Date().toISOString());
+        } else {
+          const defaultState = emptyDashboardState();
+          setLocalDashboardState(defaultState);
+          await pushCloudState({ silentSuccess: true });
+        }
+      }
+    } catch (error) {
+      reportCloudEntrypointError('Auth state failed', error);
     }
   }
 
   async function initializeAuth() {
-    const { data: { session } } = await sb.auth.getSession();
-    await handleAuthStateChange('INITIAL_SESSION', session || null);
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      await handleAuthStateChange('INITIAL_SESSION', session || null);
+    } catch (error) {
+      reportCloudEntrypointError('Auth check failed', error);
+    }
   }
 
   function bindCloudEvents() {
@@ -4527,9 +4630,7 @@
     cloud.passwordInput.addEventListener('keydown', submitSignIn);
 
     sb.auth.onAuthStateChange((event, session) => {
-      handleAuthStateChange(event, session).catch((error) => {
-        setStatus(`Auth state failed: ${error.message}`, 'error');
-      });
+      handleAuthStateChange(event, session);
     });
   }
 
@@ -4602,14 +4703,6 @@
         saveUiState();
         renderCardCollapseState();
         renderCollapseAllButton();
-      });
-    });
-  }
-
-  function bindCardMoveEvents() {
-    document.querySelectorAll('[data-card-move]').forEach((button) => {
-      button.addEventListener('click', () => {
-        moveCard(button.dataset.cardMove, button.dataset.direction);
       });
     });
   }
@@ -4712,9 +4805,15 @@
     if (saveMeetingBigEdit()) closeMeetingBigEdit();
   });
 
-  meetingBigEditClose.addEventListener('click', closeMeetingBigEdit);
-  meetingBigEditCancel.addEventListener('click', closeMeetingBigEdit);
-  meetingBigEditBackdrop.addEventListener('click', closeMeetingBigEdit);
+  [meetingBigEditTitleInput, meetingBigEditDateInput, meetingBigEditHourInput, meetingBigEditMinuteInput]
+    .forEach((input) => input.addEventListener('input', scheduleMeetingBigEditAutosave));
+  meetingBigEditNotesEditor.addEventListener('input', scheduleMeetingBigEditAutosave);
+  if (meetingBigEditRecordedInput) {
+    meetingBigEditRecordedInput.addEventListener('change', scheduleMeetingBigEditAutosave);
+  }
+
+  meetingBigEditClose.addEventListener('click', attemptCloseMeetingBigEdit);
+  meetingBigEditCancel.addEventListener('click', attemptCloseMeetingBigEdit);
 
   bigTicketModalSave.addEventListener('click', () => {
     if (saveBigTicketModal()) closeBigTicketModal(true);
@@ -4781,7 +4880,7 @@
       return;
     }
     if (!meetingBigEditModal.hidden) {
-      closeMeetingBigEdit();
+      attemptCloseMeetingBigEdit();
       return;
     }
     if (!modal.hidden) closeModal();
@@ -5066,7 +5165,5 @@
   bindCloudEvents();
   loadData();
   renderAll();
-  initializeAuth().catch((error) => {
-    setStatus(`Auth check failed: ${error.message}`, 'error');
-  });
+  initializeAuth();
 })();
