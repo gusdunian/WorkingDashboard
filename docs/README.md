@@ -1,34 +1,39 @@
 # Documentation Index
 
-This `/docs` directory is the operational source of truth for the Working Dashboard system.
-It documents architecture, runtime behavior, data contracts, security controls, and team practices.
-Use this index to route quickly to the right document for design, implementation, support, and operations.
+This `/docs` folder is the current-state reference for Working Dashboard.
+Use it for architecture, runtime behaviour, data contracts, operations, and active development practices.
 
-## What this app is
+## What is covered
 
-Working Dashboard is a single-user, static web application that runs in the browser and syncs to Supabase.  
-It provides action tracking, meeting notes, big-ticket planning, and general notes with rich text editing.  
-The UI is local-first and then cloud-synced to support low-latency interaction across devices.  
-Authentication is Supabase Auth; persistent server state is stored in one `dashboard_state` row per user.  
-Deployment is GitHub Pages with a GitHub Actions workflow from `main`.
+Working Dashboard is a browser app hosted on GitHub Pages, with Supabase Auth + Postgres persistence.
+The app renders local state first, then performs background cloud refresh/sync so the UI stays responsive while still converging across devices.
+
+These docs cover:
+- GitHub Pages deployment and branch promotion workflow.
+- Supabase-backed auth/sync/runtime guardrails.
+- Canonical `dashboard_state` schema and migrations.
+- UI shell, filters, privacy mode, whiteboard, card layout controls, import/export, and autosave behaviour.
+- Development patterns and incident runbooks.
 
 ## Navigation
 
-- [`architecture.md`](./architecture.md) — Use for system design, module responsibilities, sync behavior, and reusable UI architecture spec.
-- [`data-model.md`](./data-model.md) — Use for canonical `dashboard_state.state` schema, field contracts, migrations, import/export format, and rich-text rules.
-- [`security.md`](./security.md) — Use for threat model, RLS expectations, secrets policy, privacy mode, and logging constraints.
-- [`operations.md`](./operations.md) — Use for deployment operations, promotion workflow, backup/recovery, incidents, and repo rename procedure.
-- [`development.md`](./development.md) — Use for branch/PR/testing agreements, code structure conventions, feature implementation patterns, performance, accessibility, and UI component spec.
-- [`troubleshooting.md`](./troubleshooting.md) — Use for symptom-to-cause-to-fix guides and exact verification steps.
-- [`changelog.md`](./changelog.md) — Use for release notes and state-version-related change tracking.
+- [`architecture.md`](./architecture.md) — Runtime architecture, sync flow, UI shell contract, modal behaviour, and card layout mechanics.
+- [`data-model.md`](./data-model.md) — Canonical state schema (`stateVersion`, `migrateState`, entities, and UI fields).
+- [`security.md`](./security.md) — Security constraints, privacy mode limits, and secret-handling rules.
+- [`operations.md`](./operations.md) — Deployment/promotion workflow, merge conflict runbooks, import/recovery, and cache guidance.
+- [`development.md`](./development.md) — Engineering implementation patterns (idempotent init, delegation, autosave, parser rules, whiteboard scope).
+- [`troubleshooting.md`](./troubleshooting.md) — Symptom → diagnosis → fix guides for runtime and sync issues.
+- [`changelog.md`](./changelog.md) — Dated user-visible changes and state/model updates.
 
-## Document maintenance conventions
+## Branch and deployment workflow
 
-- **Ownership**: Engineering team owns all files in `/docs`; reviewers are expected to treat docs as code.
-- **PR rule**: Any PR that changes behavior, UX, schema, sync logic, auth behavior, imports/exports, or operational workflow must update affected docs in the same PR.
-- **Version discipline**:
-  - Data model changes must update `data-model.md` and `changelog.md`.
-  - UI behavior changes must update both UI spec sections in `architecture.md` and `development.md`.
-  - Security-affecting changes must update `security.md`.
-- **Accuracy standard**: Keep docs current-state oriented. Remove superseded guidance instead of stacking historical notes.
-- **No sensitive content**: Never include secrets, tokens, private endpoints, or user data examples.
+- Day-to-day integration branch is `dev`.
+- Production branch is `main`.
+- Promotion path is **`dev` → `main`** via PR, then GitHub Actions deploys Pages from `main`.
+- If repository Pages settings are temporarily switched to a branch source (instead of Actions), switch back to the standard production source after verification to avoid drift from the documented release flow.
+
+## Maintenance rules
+
+- Update docs in the same PR as behaviour changes.
+- Keep language implementation-oriented; remove stale guidance instead of stacking historical notes.
+- Never include secrets, API keys, private URLs, or user data.
