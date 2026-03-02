@@ -313,6 +313,11 @@ body { margin: 0; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe 
 .card-move-btn[disabled] { opacity: 0.45; pointer-events: none; }
 .card-toggle { border: 0; background: transparent; color: inherit; font-size: 1.6rem; line-height: 1; width: 2rem; height: 2rem; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; }
 .card-toggle:hover, .card-toggle:focus-visible { background: rgba(255, 255, 255, 0.2); }
+.card-reorder-controls { display: inline-flex; align-items: center; gap: 0.18rem; margin-left: auto; margin-right: 0.2rem; padding-right: 0.25rem; border-right: 1px solid rgba(255, 255, 255, 0.35); }
+.card-reorder-btn { border: 1px solid rgba(255, 255, 255, 0.55); background: transparent; color: inherit; width: 1.5rem; height: 1.4rem; border-radius: 4px; padding: 0; font-size: 0.72rem; display: inline-flex; align-items: center; justify-content: center; }
+.card-reorder-btn:hover, .card-reorder-btn:focus-visible { background: rgba(255, 255, 255, 0.2); }
+.card-reorder-btn:disabled { opacity: 0.45; cursor: default; }
+
 .card-body[hidden] { display: none; }
 .card-body { color: #111827; }
 .general-note-month-header { margin: 0; font-size: 0.92rem; font-weight: 700; color: #0f172a; }
