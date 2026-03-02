@@ -354,6 +354,8 @@
   let transientStatusTimer = null;
   let lastTransientStatusMessage = '';
   let lastTransientStatusShownAt = 0;
+  let lastCloudEntrypointErrorKey = '';
+  let lastCloudEntrypointErrorAt = 0;
 
   const lists = {
     general: {
@@ -1560,6 +1562,17 @@
     if (normalizedType !== 'loading' && shouldToast && criticalToast) {
       showToast(nextMessage, normalizedType === 'warning' ? 'warning' : normalizedType);
     }
+  }
+
+  function reportCloudEntrypointError(prefix, error) {
+    const message = error instanceof Error ? error.message : String(error || 'Unknown error');
+    const dedupeKey = `${prefix}:${message}`;
+    const now = Date.now();
+    if (dedupeKey === lastCloudEntrypointErrorKey && now - lastCloudEntrypointErrorAt < 1500) return;
+    lastCloudEntrypointErrorKey = dedupeKey;
+    lastCloudEntrypointErrorAt = now;
+    console.error(`[cloud] ${prefix}`, error);
+    setStatus(`${prefix}: ${message}`, 'error', { toast: false });
   }
 
   function showTransientStatus(message, type = 'info', durationMs = 3000) {
@@ -2965,15 +2978,7 @@
           whiteboardIndicator.textContent = '🖊';
           row.append(summary, whiteboardIndicator, quickEditBtn);
         } else {
-          if (item.recorded) {
-            const recordedIndicator = document.createElement('span');
-            recordedIndicator.className = 'meeting-recorded-indicator';
-            recordedIndicator.textContent = 'R';
-            recordedIndicator.title = 'Recorded';
-            row.append(summary, recordedIndicator, quickEditBtn);
-          } else {
-            row.append(summary, quickEditBtn);
-          }
+          row.append(summary, quickEditBtn);
         }
         li.appendChild(row);
 
@@ -4254,7 +4259,7 @@
     autosyncTimer = window.setTimeout(() => {
       autosyncTimer = null;
       runAutosync().catch((error) => {
-        setStatus(`Sync failed: ${error.message}`, 'error');
+        reportCloudEntrypointError('Sync failed', error);
       });
     }, AUTOSYNC_DEBOUNCE_MS);
   }
@@ -4267,7 +4272,7 @@
       autosyncTimer = null;
     }
     runAutosync().catch((error) => {
-      setStatus(`Sync failed: ${error.message}`, 'error');
+      reportCloudEntrypointError('Sync failed', error);
     });
   }
 
@@ -4288,6 +4293,8 @@
       }
       if (!autosyncPending) {
         }
+    } catch (error) {
+      reportCloudEntrypointError('Sync failed', error);
     } finally {
       autosyncInFlight = false;
       setSyncIndicator(false);
@@ -4308,6 +4315,9 @@
         ? 'Cloud updated elsewhere — reloaded latest to avoid overwriting.'
         : 'Updated from another device', recentDirty ? 'warning' : 'info');
       return true;
+    } catch (error) {
+      reportCloudEntrypointError('Sync failed', error);
+      return false;
     } finally {
       cloud.refreshInFlight = false;
       setSyncIndicator(false);
@@ -4321,7 +4331,7 @@
     cloud.focusRefreshTimer = window.setTimeout(() => {
       cloud.focusRefreshTimer = null;
       refreshFromCloudIfNewer().catch((error) => {
-        setStatus(`Sync error: ${error.message}`, 'error');
+        reportCloudEntrypointError('Sync failed', error);
       });
     }, FOCUS_SYNC_DEBOUNCE_MS);
   }
@@ -4469,45 +4479,53 @@
   }
 
   async function handleAuthStateChange(event, session) {
-    cloud.signedInUser = session?.user || null;
-    applyAuthUiState({ deferRender: event === 'SIGNED_IN' || event === 'INITIAL_SESSION' });
+    try {
+      cloud.signedInUser = session?.user || null;
+      applyAuthUiState({ deferRender: event === 'SIGNED_IN' || event === 'INITIAL_SESSION' });
 
-    if (!cloud.signedInUser) {
-      autosyncPending = false;
-      if (autosyncTimer) {
-        window.clearTimeout(autosyncTimer);
-        autosyncTimer = null;
-      }
-      setLoading(false);
-      if (event === 'SIGNED_OUT') {
-        setStatus('Signed out', 'info', { toast: false });
-      }
-      return;
-    }
-
-    if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-      hydrateFromLocalCacheAndRender();
-      setLoading(false);
-
-      await refreshFromCloudIfNewer({ reason: 'auth' });
-
-      const row = await fetchCloudStateRow(cloud.signedInUser.id);
-      if (row && row.state) {
-        if (!cloud.lastCloudUpdatedAt || isCloudNewerThanLastKnown(row.updated_at)) {
-          setLocalDashboardState(row.state);
+      if (!cloud.signedInUser) {
+        autosyncPending = false;
+        if (autosyncTimer) {
+          window.clearTimeout(autosyncTimer);
+          autosyncTimer = null;
         }
-        markLastSynced(new Date().toISOString(), row.updated_at || new Date().toISOString());
-      } else {
-        const defaultState = emptyDashboardState();
-        setLocalDashboardState(defaultState);
-        await pushCloudState({ silentSuccess: true });
+        setLoading(false);
+        if (event === 'SIGNED_OUT') {
+          setStatus('Signed out', 'info', { toast: false });
+        }
+        return;
       }
+
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        hydrateFromLocalCacheAndRender();
+        setLoading(false);
+
+        await refreshFromCloudIfNewer({ reason: 'auth' });
+
+        const row = await fetchCloudStateRow(cloud.signedInUser.id);
+        if (row && row.state) {
+          if (!cloud.lastCloudUpdatedAt || isCloudNewerThanLastKnown(row.updated_at)) {
+            setLocalDashboardState(row.state);
+          }
+          markLastSynced(new Date().toISOString(), row.updated_at || new Date().toISOString());
+        } else {
+          const defaultState = emptyDashboardState();
+          setLocalDashboardState(defaultState);
+          await pushCloudState({ silentSuccess: true });
+        }
+      }
+    } catch (error) {
+      reportCloudEntrypointError('Auth state failed', error);
     }
   }
 
   async function initializeAuth() {
-    const { data: { session } } = await sb.auth.getSession();
-    await handleAuthStateChange('INITIAL_SESSION', session || null);
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      await handleAuthStateChange('INITIAL_SESSION', session || null);
+    } catch (error) {
+      reportCloudEntrypointError('Auth check failed', error);
+    }
   }
 
   function bindCloudEvents() {
@@ -4527,9 +4545,7 @@
     cloud.passwordInput.addEventListener('keydown', submitSignIn);
 
     sb.auth.onAuthStateChange((event, session) => {
-      handleAuthStateChange(event, session).catch((error) => {
-        setStatus(`Auth state failed: ${error.message}`, 'error');
-      });
+      handleAuthStateChange(event, session);
     });
   }
 
@@ -5066,7 +5082,5 @@
   bindCloudEvents();
   loadData();
   renderAll();
-  initializeAuth().catch((error) => {
-    setStatus(`Auth check failed: ${error.message}`, 'error');
-  });
+  initializeAuth();
 })();
