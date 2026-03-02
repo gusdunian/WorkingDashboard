@@ -2529,12 +2529,22 @@
     document.querySelectorAll('.collapsible-card').forEach((card) => {
       const cardId = card.dataset.cardId;
       const header = card.querySelector('.column-header');
-      const toggle = header?.querySelector('[data-card-toggle]');
-      if (!header || !toggle || !cardId) return;
-      if (header.querySelector('[data-card-reorder-group]')) return;
+      if (!header || !cardId) return;
+      if (header.querySelector('.card-move-controls, [data-card-reorder-group]')) return;
+
+      const toggle = header.querySelector('[data-card-toggle]');
+      let headerControls = header.querySelector('.card-header-controls, .column-header-actions');
+      if (!headerControls) {
+        headerControls = document.createElement('div');
+        headerControls.className = 'card-header-controls column-header-actions';
+        header.appendChild(headerControls);
+      }
+      if (toggle && toggle.parentElement !== headerControls) {
+        headerControls.appendChild(toggle);
+      }
 
       const group = document.createElement('div');
-      group.className = 'card-reorder-controls';
+      group.className = 'card-reorder-controls card-move-controls';
       group.setAttribute('data-card-reorder-group', cardId);
       group.setAttribute('aria-label', 'Reorder card');
 
@@ -2556,7 +2566,7 @@
         group.appendChild(button);
       });
 
-      header.insertBefore(group, toggle);
+      headerControls.appendChild(group);
     });
   }
 
@@ -3030,6 +3040,8 @@
     renderMeetings();
     renderGeneralNotes();
     arrangeCardsByLayout();
+    initializeCardReorderControls();
+    bindCardReorderEvents();
     updateCardReorderControls();
     renderCardCollapseState();
     updateCardMoveControlState();
@@ -5051,8 +5063,6 @@
   bindGeneralNotesEvents();
   applyTheme(defaultTheme);
   bindCardToggleEvents();
-  initializeCardReorderControls();
-  bindCardReorderEvents();
   bindCloudEvents();
   loadData();
   renderAll();
