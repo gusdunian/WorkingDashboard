@@ -22,6 +22,19 @@
           <span id="dashboard-title">Angus’ Working Dashboard</span>
         </h1>
         <p id="dashboard-date" class="banner-date" aria-label="Today&#39;s date"></p>
+        <div id="global-filter-bar" class="global-filter-bar" hidden>
+          <label class="visually-hidden" for="global-tag-filter">Filter by tag</label>
+          <select id="global-tag-filter" class="person-filter-select">
+            <option value="All">All tags</option>
+          </select>
+          <label class="visually-hidden" for="global-person-filter">Filter by person</label>
+          <select id="global-person-filter" class="person-filter-select">
+            <option value="All">All people</option>
+          </select>
+          <label class="visually-hidden" for="global-search-filter">Search all sections</label>
+          <input id="global-search-filter" class="filter-search-input" type="search" placeholder="Search…" aria-label="Search all sections" />
+          <button id="global-filter-clear-btn" type="button" class="subtle-button global-filter-clear-btn" aria-label="Clear all filters">×</button>
+        </div>
       </div>
       <section class="cloud-panel" aria-label="Cloud sync controls">
         <div class="cloud-controls">
@@ -63,7 +76,15 @@
               </svg>
               <span>General action list</span>
             </h2>
-            <button type="button" class="card-toggle" data-card-toggle="generalActions" aria-expanded="true">▾</button>
+            <div class="column-header-actions">
+              <div class="card-move-controls" aria-label="Move card">
+                <button type="button" class="card-move-btn" data-card-move="generalActions" data-direction="left" aria-label="Move card left">←</button>
+                <button type="button" class="card-move-btn" data-card-move="generalActions" data-direction="right" aria-label="Move card right">→</button>
+                <button type="button" class="card-move-btn" data-card-move="generalActions" data-direction="up" aria-label="Move card up">↑</button>
+                <button type="button" class="card-move-btn" data-card-move="generalActions" data-direction="down" aria-label="Move card down">↓</button>
+              </div>
+              <button type="button" class="card-toggle" data-card-toggle="generalActions" aria-expanded="true">▾</button>
+            </div>
           </div>
             <div class="card-body" data-card-body="generalActions">
               <div class="action-toolbar">
@@ -86,32 +107,7 @@
                       <button type="button" data-command="insertUnorderedList" aria-label="Bulleted list">•</button>
                       <button type="button" data-command="insertOrderedList" aria-label="Numbered list">1.</button>
                     </div>
-                    <div class="toolbar-filter-group">
-                      <div class="inline-filter-control">
-                        <label for="general-tag-filter" class="filter-icon-label" aria-label="Tag filter">
-                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <path d="M20 13 11 4H4v7l9 9z" />
-                            <circle cx="7.5" cy="7.5" r="1" />
-                          </svg>
-                        </label>
-                        <select id="general-tag-filter" class="person-filter-select">
-                          <option value="All">All</option>
-                        </select>
-                      </div>
-                      <div class="inline-filter-control">
-                        <label for="general-person-filter" class="filter-icon-label" aria-label="Person filter">
-                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <circle cx="12" cy="8" r="3.5" />
-                            <path d="M5 20c.8-3.4 3.8-5.5 7-5.5s6.2 2.1 7 5.5" />
-                          </svg>
-                        </label>
-                        <select id="general-person-filter" class="person-filter-select">
-                          <option value="All">All</option>
-                        </select>
-                      </div>
-                    </div>
                   </div>
-                  <span id="general-person-filter-count" class="person-filter-count" aria-live="polite"></span>
                 </form>
               </div>
               <ul id="general-action-list" class="action-list" aria-label="General action items"></ul>
@@ -127,7 +123,15 @@
                 </svg>
                 <span>Personal actions</span>
               </h2>
-              <button type="button" class="card-toggle" data-card-toggle="personalActions" aria-expanded="true">▾</button>
+              <div class="column-header-actions">
+                <div class="card-move-controls" aria-label="Move card">
+                  <button type="button" class="card-move-btn" data-card-move="personalActions" data-direction="left" aria-label="Move card left">←</button>
+                  <button type="button" class="card-move-btn" data-card-move="personalActions" data-direction="right" aria-label="Move card right">→</button>
+                  <button type="button" class="card-move-btn" data-card-move="personalActions" data-direction="up" aria-label="Move card up">↑</button>
+                  <button type="button" class="card-move-btn" data-card-move="personalActions" data-direction="down" aria-label="Move card down">↓</button>
+                </div>
+                <button type="button" class="card-toggle" data-card-toggle="personalActions" aria-expanded="true">▾</button>
+              </div>
             </div>
             <div class="card-body" data-card-body="personalActions">
               <div class="action-toolbar">
@@ -163,7 +167,15 @@
                 </svg>
                 <span>Big ticket items</span>
               </h2>
-              <button type="button" class="card-toggle" data-card-toggle="bigTicket" aria-expanded="true">▾</button>
+              <div class="column-header-actions">
+                <div class="card-move-controls" aria-label="Move card">
+                  <button type="button" class="card-move-btn" data-card-move="bigTicket" data-direction="left" aria-label="Move card left">←</button>
+                  <button type="button" class="card-move-btn" data-card-move="bigTicket" data-direction="right" aria-label="Move card right">→</button>
+                  <button type="button" class="card-move-btn" data-card-move="bigTicket" data-direction="up" aria-label="Move card up">↑</button>
+                  <button type="button" class="card-move-btn" data-card-move="bigTicket" data-direction="down" aria-label="Move card down">↓</button>
+                </div>
+                <button type="button" class="card-toggle" data-card-toggle="bigTicket" aria-expanded="true">▾</button>
+              </div>
             </div>
             <div class="card-body" data-card-body="bigTicket">
               <div class="action-toolbar">
@@ -200,7 +212,15 @@
                 </svg>
                 <span>Scheduling actions</span>
               </h2>
-              <button type="button" class="card-toggle" data-card-toggle="scheduling" aria-expanded="true">▾</button>
+              <div class="column-header-actions">
+                <div class="card-move-controls" aria-label="Move card">
+                  <button type="button" class="card-move-btn" data-card-move="scheduling" data-direction="left" aria-label="Move card left">←</button>
+                  <button type="button" class="card-move-btn" data-card-move="scheduling" data-direction="right" aria-label="Move card right">→</button>
+                  <button type="button" class="card-move-btn" data-card-move="scheduling" data-direction="up" aria-label="Move card up">↑</button>
+                  <button type="button" class="card-move-btn" data-card-move="scheduling" data-direction="down" aria-label="Move card down">↓</button>
+                </div>
+                <button type="button" class="card-toggle" data-card-toggle="scheduling" aria-expanded="true">▾</button>
+              </div>
             </div>
             <div class="card-body" data-card-body="scheduling">
               <div class="action-toolbar">
@@ -223,32 +243,7 @@
                       <button type="button" data-command="insertUnorderedList" aria-label="Bulleted list">•</button>
                       <button type="button" data-command="insertOrderedList" aria-label="Numbered list">1.</button>
                     </div>
-                    <div class="toolbar-filter-group">
-                      <div class="inline-filter-control">
-                        <label for="scheduling-tag-filter" class="filter-icon-label" aria-label="Tag filter">
-                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <path d="M20 13 11 4H4v7l9 9z" />
-                            <circle cx="7.5" cy="7.5" r="1" />
-                          </svg>
-                        </label>
-                        <select id="scheduling-tag-filter" class="person-filter-select">
-                          <option value="All">All</option>
-                        </select>
-                      </div>
-                      <div class="inline-filter-control">
-                        <label for="scheduling-person-filter" class="filter-icon-label" aria-label="Person filter">
-                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <circle cx="12" cy="8" r="3.5" />
-                            <path d="M5 20c.8-3.4 3.8-5.5 7-5.5s6.2 2.1 7 5.5" />
-                          </svg>
-                        </label>
-                        <select id="scheduling-person-filter" class="person-filter-select">
-                          <option value="All">All</option>
-                        </select>
-                      </div>
-                    </div>
                   </div>
-                  <span id="scheduling-person-filter-count" class="person-filter-count" aria-live="polite"></span>
                 </form>
               </div>
               <ul id="scheduling-action-list" class="action-list" aria-label="Scheduling action items"></ul>
@@ -271,7 +266,15 @@
                 </svg>
                 <span>Meeting notes</span>
               </h2>
-              <button type="button" class="card-toggle" data-card-toggle="meetingNotes" aria-expanded="true">▾</button>
+              <div class="column-header-actions">
+                <div class="card-move-controls" aria-label="Move card">
+                  <button type="button" class="card-move-btn" data-card-move="meetingNotes" data-direction="left" aria-label="Move card left">←</button>
+                  <button type="button" class="card-move-btn" data-card-move="meetingNotes" data-direction="right" aria-label="Move card right">→</button>
+                  <button type="button" class="card-move-btn" data-card-move="meetingNotes" data-direction="up" aria-label="Move card up">↑</button>
+                  <button type="button" class="card-move-btn" data-card-move="meetingNotes" data-direction="down" aria-label="Move card down">↓</button>
+                </div>
+                <button type="button" class="card-toggle" data-card-toggle="meetingNotes" aria-expanded="true">▾</button>
+              </div>
             </div>
             <div class="card-body" data-card-body="meetingNotes">
               <div class="meeting-toolbar">
@@ -305,30 +308,7 @@
                       <button type="button" data-command="insertUnorderedList" aria-label="Bulleted list">•</button>
                       <button type="button" data-command="insertOrderedList" aria-label="Numbered list">1.</button>
                     </div>
-                    <div class="toolbar-filter-group">
-                      <div class="inline-filter-control">
-                        <label for="meeting-tag-filter" class="filter-icon-label" aria-label="Tag filter">
-                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <path d="M20 13 11 4H4v7l9 9z" />
-                            <circle cx="7.5" cy="7.5" r="1" />
-                          </svg>
-                        </label>
-                        <select id="meeting-tag-filter" class="person-filter-select">
-                          <option value="All">All</option>
-                        </select>
-                      </div>
-                      <div class="inline-filter-control">
-                        <label for="meeting-person-filter" class="filter-icon-label" aria-label="Person filter">
-                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <circle cx="12" cy="8" r="3.2" />
-                            <path d="M5.5 19c.8-3 3.4-5 6.5-5s5.7 2 6.5 5" />
-                          </svg>
-                        </label>
-                        <select id="meeting-person-filter" class="person-filter-select">
-                          <option value="All">All</option>
-                        </select>
-                      </div>
-                    </div>
+                    <button id="meeting-big-btn" type="button" class="subtle-button meeting-big-launch-btn" aria-label="Save draft and open big edit">BIG</button>
                   </div>
                   <button type="submit" aria-label="Add meeting">+</button>
                 </form>
@@ -349,7 +329,15 @@
                 </svg>
                 <span>General notes</span>
               </h2>
-              <button type="button" class="card-toggle" data-card-toggle="generalNotes" aria-expanded="true">▾</button>
+              <div class="column-header-actions">
+                <div class="card-move-controls" aria-label="Move card">
+                  <button type="button" class="card-move-btn" data-card-move="generalNotes" data-direction="left" aria-label="Move card left">←</button>
+                  <button type="button" class="card-move-btn" data-card-move="generalNotes" data-direction="right" aria-label="Move card right">→</button>
+                  <button type="button" class="card-move-btn" data-card-move="generalNotes" data-direction="up" aria-label="Move card up">↑</button>
+                  <button type="button" class="card-move-btn" data-card-move="generalNotes" data-direction="down" aria-label="Move card down">↓</button>
+                </div>
+                <button type="button" class="card-toggle" data-card-toggle="generalNotes" aria-expanded="true">▾</button>
+              </div>
             </div>
             <div class="card-body" data-card-body="generalNotes">
               <div class="meeting-toolbar general-notes-toolbar">
@@ -367,30 +355,6 @@
                       <button type="button" data-command="underline" aria-label="Underline">U</button>
                       <button type="button" data-command="insertUnorderedList" aria-label="Bulleted list">•</button>
                       <button type="button" data-command="insertOrderedList" aria-label="Numbered list">1.</button>
-                    </div>
-                    <div class="toolbar-filter-group">
-                      <div class="inline-filter-control">
-                        <label for="general-notes-tag-filter" class="filter-icon-label" aria-label="Tag filter">
-                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <path d="M20 13 11 4H4v7l9 9z" />
-                            <circle cx="7.5" cy="7.5" r="1" />
-                          </svg>
-                        </label>
-                        <select id="general-notes-tag-filter" class="person-filter-select">
-                          <option value="All">All</option>
-                        </select>
-                      </div>
-                      <div class="inline-filter-control">
-                        <label for="general-notes-person-filter" class="filter-icon-label" aria-label="Person filter">
-                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <circle cx="12" cy="8" r="3.2" />
-                            <path d="M5.5 19c.8-3 3.4-5 6.5-5s5.7 2 6.5 5" />
-                          </svg>
-                        </label>
-                        <select id="general-notes-person-filter" class="person-filter-select">
-                          <option value="All">All</option>
-                        </select>
-                      </div>
                     </div>
                   </div>
                 </form>
@@ -439,7 +403,9 @@
       <div id="meeting-big-edit-backdrop" class="modal-backdrop"></div>
       <div class="modal-dialog big-edit-dialog" role="dialog" aria-modal="true" aria-labelledby="meeting-big-edit-title">
         <button id="meeting-big-edit-close" type="button" class="modal-close" aria-label="Close modal">×</button>
-        <h3 id="meeting-big-edit-title">Edit Meeting</h3>
+        <div class="big-edit-header-row">
+          <h3 id="meeting-big-edit-title">Edit Meeting</h3>
+        </div>
         <form id="meeting-big-edit-form" class="meeting-big-edit-form" autocomplete="off">
           <label class="visually-hidden" for="meeting-big-edit-title-input">Meeting title</label>
           <input id="meeting-big-edit-title-input" name="title" type="text" maxlength="200" required />
@@ -459,6 +425,10 @@
               <option value="45">45</option>
             </select>
           </div>
+          <label class="meeting-recorded-toggle" for="meeting-big-edit-recorded">
+            <span>R</span>
+            <input id="meeting-big-edit-recorded" name="recorded" type="checkbox" />
+          </label>
 
           <label class="visually-hidden" for="meeting-big-edit-notes-editor">Meeting notes</label>
           <div id="meeting-big-edit-notes-editor" class="modal-editor" contenteditable="true" role="textbox" aria-multiline="true"></div>
@@ -528,6 +498,7 @@
           <div id="general-note-whiteboard-panel" class="general-note-edit-panel" role="tabpanel" hidden>
             <div class="whiteboard-layout">
               <div class="whiteboard-toolbar">
+                <button type="button" class="whiteboard-tool-btn" data-whiteboard-tool="select">Select</button>
                 <button type="button" class="whiteboard-tool-btn" data-whiteboard-tool="pen">Pen</button>
                 <button type="button" class="whiteboard-tool-btn" data-whiteboard-tool="eraser">Eraser</button>
                 <button type="button" class="whiteboard-tool-btn" data-whiteboard-tool="line">Line</button>
@@ -538,6 +509,12 @@
                 <input id="whiteboard-width" type="range" min="1" max="24" value="3" aria-label="Stroke width" />
                 <button id="whiteboard-undo-btn" type="button" class="whiteboard-tool-btn">Undo</button>
                 <button id="whiteboard-clear-btn" type="button" class="whiteboard-tool-btn">Clear</button>
+                <div id="whiteboard-image-actions" class="whiteboard-image-actions" hidden>
+                  <button id="whiteboard-image-delete-btn" type="button" class="whiteboard-tool-btn">Delete image</button>
+                  <button id="whiteboard-image-forward-btn" type="button" class="whiteboard-tool-btn">Bring forward</button>
+                  <button id="whiteboard-image-backward-btn" type="button" class="whiteboard-tool-btn">Send backward</button>
+                </div>
+                <p class="whiteboard-hint">Paste (Ctrl+V) or drop an image</p>
               </div>
               <div class="whiteboard-canvas-wrap">
                 <canvas id="general-note-whiteboard-canvas" aria-label="General note whiteboard"></canvas>
