@@ -1,44 +1,30 @@
-import { createTheme } from '@mui/material/styles'
+import { createTheme, type Theme } from '@mui/material/styles'
 
 export type StylePack = 'gmail' | 'saas' | 'enterprise' | 'minimal'
 
+type SurfaceStyle = 'outlined' | 'elevation'
+type Density = 'compact' | 'comfortable' | 'dense'
+
 type PackConfig = {
   borderRadius: number
-  cardVariant: 'outlined' | 'elevation'
-  cardElevation: number
-  buttonSize: 'small' | 'medium' | 'large'
-  fieldSize: 'small' | 'medium'
-  buttonPadding: string
-  fieldPaddingY: number
-  fieldPaddingX: number
+  surfaceStyle: SurfaceStyle
+  paperElevation: number
+  density: Density
   palette: {
     mode: 'light'
     primary: { main: string }
     secondary: { main: string }
     background: { default: string; paper: string }
   }
-  typography: {
-    fontFamily: string
-    h4: { fontSize: string; fontWeight: number; letterSpacing?: string }
-    h5: { fontSize: string; fontWeight: number; letterSpacing?: string }
-    h6: { fontSize: string; fontWeight: number; letterSpacing?: string }
-    subtitle1: { fontSize: string; fontWeight: number }
-    body1: { fontSize: string; lineHeight: number; fontWeight: number }
-    body2: { fontSize: string; lineHeight: number; fontWeight: number }
-    button: { fontSize: string; fontWeight: number; textTransform?: 'none' | 'uppercase' }
-  }
+  typography: Theme['typography']
 }
 
 const packConfigs: Record<StylePack, PackConfig> = {
   gmail: {
-    borderRadius: 16,
-    cardVariant: 'elevation',
-    cardElevation: 1,
-    buttonSize: 'large',
-    fieldSize: 'medium',
-    buttonPadding: '10px 22px',
-    fieldPaddingY: 12,
-    fieldPaddingX: 14,
+    borderRadius: 12,
+    surfaceStyle: 'outlined',
+    paperElevation: 0,
+    density: 'compact',
     palette: {
       mode: 'light',
       primary: { main: '#1a73e8' },
@@ -47,24 +33,21 @@ const packConfigs: Record<StylePack, PackConfig> = {
     },
     typography: {
       fontFamily: 'Roboto, Inter, Helvetica, Arial, sans-serif',
-      h4: { fontSize: '2rem', fontWeight: 500, letterSpacing: '-0.01em' },
-      h5: { fontSize: '1.6rem', fontWeight: 500 },
-      h6: { fontSize: '1.2rem', fontWeight: 500 },
-      subtitle1: { fontSize: '1rem', fontWeight: 500 },
-      body1: { fontSize: '1rem', lineHeight: 1.7, fontWeight: 400 },
-      body2: { fontSize: '0.92rem', lineHeight: 1.6, fontWeight: 400 },
-      button: { fontSize: '0.95rem', fontWeight: 600, textTransform: 'none' },
+      h1: { fontSize: '2.35rem', fontWeight: 500, letterSpacing: '-0.02em' },
+      h2: { fontSize: '1.95rem', fontWeight: 500, letterSpacing: '-0.015em' },
+      h4: { fontSize: '1.7rem', fontWeight: 500 },
+      h5: { fontSize: '1.35rem', fontWeight: 500 },
+      h6: { fontSize: '1.08rem', fontWeight: 500 },
+      body1: { fontSize: '0.94rem', lineHeight: 1.55, fontWeight: 400 },
+      body2: { fontSize: '0.84rem', lineHeight: 1.5, fontWeight: 400 },
+      button: { fontSize: '0.83rem', fontWeight: 600, textTransform: 'none' },
     },
   },
   saas: {
-    borderRadius: 20,
-    cardVariant: 'elevation',
-    cardElevation: 5,
-    buttonSize: 'medium',
-    fieldSize: 'small',
-    buttonPadding: '8px 20px',
-    fieldPaddingY: 10,
-    fieldPaddingX: 12,
+    borderRadius: 16,
+    surfaceStyle: 'elevation',
+    paperElevation: 5,
+    density: 'comfortable',
     palette: {
       mode: 'light',
       primary: { main: '#6750a4' },
@@ -73,24 +56,21 @@ const packConfigs: Record<StylePack, PackConfig> = {
     },
     typography: {
       fontFamily: 'Inter, Roboto, Helvetica, Arial, sans-serif',
-      h4: { fontSize: '2.1rem', fontWeight: 700, letterSpacing: '-0.015em' },
-      h5: { fontSize: '1.7rem', fontWeight: 700 },
-      h6: { fontSize: '1.25rem', fontWeight: 650 },
-      subtitle1: { fontSize: '1rem', fontWeight: 600 },
+      h1: { fontSize: '2.6rem', fontWeight: 800, letterSpacing: '-0.03em' },
+      h2: { fontSize: '2.15rem', fontWeight: 750, letterSpacing: '-0.02em' },
+      h4: { fontSize: '1.95rem', fontWeight: 700 },
+      h5: { fontSize: '1.55rem', fontWeight: 700 },
+      h6: { fontSize: '1.2rem', fontWeight: 650 },
       body1: { fontSize: '1rem', lineHeight: 1.65, fontWeight: 400 },
       body2: { fontSize: '0.9rem', lineHeight: 1.55, fontWeight: 400 },
-      button: { fontSize: '0.86rem', fontWeight: 700, textTransform: 'uppercase' },
+      button: { fontSize: '0.84rem', fontWeight: 700, textTransform: 'uppercase' },
     },
   },
   enterprise: {
-    borderRadius: 8,
-    cardVariant: 'outlined',
-    cardElevation: 0,
-    buttonSize: 'small',
-    fieldSize: 'small',
-    buttonPadding: '6px 14px',
-    fieldPaddingY: 8,
-    fieldPaddingX: 10,
+    borderRadius: 6,
+    surfaceStyle: 'outlined',
+    paperElevation: 0,
+    density: 'dense',
     palette: {
       mode: 'light',
       primary: { main: '#0b5cab' },
@@ -99,24 +79,21 @@ const packConfigs: Record<StylePack, PackConfig> = {
     },
     typography: {
       fontFamily: '"Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif',
-      h4: { fontSize: '1.8rem', fontWeight: 700 },
-      h5: { fontSize: '1.45rem', fontWeight: 700 },
-      h6: { fontSize: '1.08rem', fontWeight: 700 },
-      subtitle1: { fontSize: '0.97rem', fontWeight: 600 },
-      body1: { fontSize: '0.95rem', lineHeight: 1.5, fontWeight: 400 },
-      body2: { fontSize: '0.85rem', lineHeight: 1.45, fontWeight: 400 },
-      button: { fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase' },
+      h1: { fontSize: '2.1rem', fontWeight: 700 },
+      h2: { fontSize: '1.8rem', fontWeight: 700 },
+      h4: { fontSize: '1.55rem', fontWeight: 700 },
+      h5: { fontSize: '1.25rem', fontWeight: 700 },
+      h6: { fontSize: '1rem', fontWeight: 700 },
+      body1: { fontSize: '0.92rem', lineHeight: 1.5, fontWeight: 400 },
+      body2: { fontSize: '0.82rem', lineHeight: 1.45, fontWeight: 400 },
+      button: { fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase' },
     },
   },
   minimal: {
     borderRadius: 4,
-    cardVariant: 'outlined',
-    cardElevation: 0,
-    buttonSize: 'medium',
-    fieldSize: 'medium',
-    buttonPadding: '7px 16px',
-    fieldPaddingY: 9,
-    fieldPaddingX: 11,
+    surfaceStyle: 'outlined',
+    paperElevation: 0,
+    density: 'compact',
     palette: {
       mode: 'light',
       primary: { main: '#212121' },
@@ -125,19 +102,48 @@ const packConfigs: Record<StylePack, PackConfig> = {
     },
     typography: {
       fontFamily: '"IBM Plex Sans", Inter, Roboto, Helvetica, Arial, sans-serif',
-      h4: { fontSize: '1.7rem', fontWeight: 600 },
-      h5: { fontSize: '1.35rem', fontWeight: 600 },
-      h6: { fontSize: '1rem', fontWeight: 600 },
-      subtitle1: { fontSize: '0.95rem', fontWeight: 500 },
-      body1: { fontSize: '0.93rem', lineHeight: 1.55, fontWeight: 400 },
-      body2: { fontSize: '0.84rem', lineHeight: 1.45, fontWeight: 400 },
-      button: { fontSize: '0.82rem', fontWeight: 600, textTransform: 'none' },
+      h1: { fontSize: '2rem', fontWeight: 600 },
+      h2: { fontSize: '1.7rem', fontWeight: 600 },
+      h4: { fontSize: '1.45rem', fontWeight: 600 },
+      h5: { fontSize: '1.2rem', fontWeight: 600 },
+      h6: { fontSize: '0.98rem', fontWeight: 600 },
+      body1: { fontSize: '0.9rem', lineHeight: 1.5, fontWeight: 400 },
+      body2: { fontSize: '0.8rem', lineHeight: 1.45, fontWeight: 400 },
+      button: { fontSize: '0.8rem', fontWeight: 600, textTransform: 'none' },
     },
   },
 }
 
-export function createAppTheme(stylePack: StylePack) {
+const densityDefaults: Record<Density, { buttonSize: 'small' | 'medium'; textFieldSize: 'small' | 'medium'; toolbarHeight: number; listItemMinHeight: number; inputPy: number; inputPx: number }> = {
+  compact: {
+    buttonSize: 'small',
+    textFieldSize: 'small',
+    toolbarHeight: 56,
+    listItemMinHeight: 38,
+    inputPy: 8,
+    inputPx: 10,
+  },
+  comfortable: {
+    buttonSize: 'medium',
+    textFieldSize: 'medium',
+    toolbarHeight: 64,
+    listItemMinHeight: 44,
+    inputPy: 10,
+    inputPx: 12,
+  },
+  dense: {
+    buttonSize: 'small',
+    textFieldSize: 'small',
+    toolbarHeight: 58,
+    listItemMinHeight: 40,
+    inputPy: 9,
+    inputPx: 11,
+  },
+}
+
+export function createAppTheme(stylePack: StylePack): Theme {
   const config = packConfigs[stylePack] ?? packConfigs.enterprise
+  const density = densityDefaults[config.density]
 
   return createTheme({
     palette: config.palette,
@@ -148,56 +154,56 @@ export function createAppTheme(stylePack: StylePack) {
     components: {
       MuiPaper: {
         defaultProps: {
-          elevation: config.cardVariant === 'elevation' ? config.cardElevation : 0,
+          elevation: config.surfaceStyle === 'elevation' ? config.paperElevation : 0,
+          variant: config.surfaceStyle === 'outlined' ? 'outlined' : 'elevation',
         },
         styleOverrides: {
           root: {
-            border: config.cardVariant === 'outlined' ? '1px solid' : 'none',
-            borderColor: config.cardVariant === 'outlined' ? 'rgba(15, 23, 42, 0.16)' : 'transparent',
             backgroundImage: 'none',
           },
         },
       },
       MuiCard: {
         defaultProps: {
-          variant: config.cardVariant,
-          elevation: config.cardElevation,
+          variant: config.surfaceStyle === 'outlined' ? 'outlined' : 'elevation',
+          elevation: config.surfaceStyle === 'elevation' ? config.paperElevation : 0,
         },
       },
       MuiButton: {
         defaultProps: {
-          size: config.buttonSize,
-        },
-        styleOverrides: {
-          root: {
-            padding: config.buttonPadding,
-            borderRadius: config.borderRadius,
-          },
+          size: density.buttonSize,
         },
       },
       MuiTextField: {
         defaultProps: {
-          size: config.fieldSize,
+          size: density.textFieldSize,
           variant: 'outlined',
         },
       },
-      MuiOutlinedInput: {
+      MuiInputBase: {
         styleOverrides: {
           root: {
             borderRadius: config.borderRadius,
           },
           input: {
-            paddingTop: config.fieldPaddingY,
-            paddingBottom: config.fieldPaddingY,
-            paddingLeft: config.fieldPaddingX,
-            paddingRight: config.fieldPaddingX,
+            paddingTop: density.inputPy,
+            paddingBottom: density.inputPy,
+            paddingLeft: density.inputPx,
+            paddingRight: density.inputPx,
+          },
+        },
+      },
+      MuiListItemButton: {
+        styleOverrides: {
+          root: {
+            minHeight: density.listItemMinHeight,
           },
         },
       },
       MuiToolbar: {
         styleOverrides: {
           regular: {
-            minHeight: config.fieldSize === 'small' ? 58 : 64,
+            minHeight: density.toolbarHeight,
           },
         },
       },

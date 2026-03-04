@@ -7,6 +7,7 @@ function Home() {
       <Typography variant="h4" component="h1">
         Home
       </Typography>
+
       <Grid container spacing={3}>
         <Grid item xs={12} md={7}>
           <Card>
@@ -14,25 +15,27 @@ function Home() {
               <Stack spacing={2}>
                 <Typography variant="h6">Welcome</Typography>
                 <Typography color="text.secondary">
-                  Use the Style Pack selector in the app bar to quickly change the visual system.
+                  Pick a style pack from the app bar to preview typography scale, surface treatment, and density changes.
                 </Typography>
+                <TextField fullWidth label="Workspace" placeholder="Angus Working Dashboard" />
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                  <TextField fullWidth label="Project name" placeholder="Working Dashboard" />
-                  <Button component={RouterLink} variant="contained" to="/dashboard">
-                    Go to Dashboard
+                  <Button variant="contained">Save Preferences</Button>
+                  <Button component={RouterLink} variant="outlined" to="/dashboard">
+                    Open Dashboard
                   </Button>
                 </Stack>
               </Stack>
             </CardContent>
           </Card>
         </Grid>
+
         <Grid item xs={12} md={5}>
           <Card>
             <CardContent>
               <Stack spacing={1.25}>
-                <Typography variant="subtitle1">What changes per pack?</Typography>
+                <Typography variant="subtitle1">Pack behavior</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Typography scale and weight, border radius, surface treatment, and component density.
+                  Gmail and Minimal feel compact, SaaS is comfortable with elevated cards, and Enterprise is dense but readable.
                 </Typography>
               </Stack>
             </CardContent>
