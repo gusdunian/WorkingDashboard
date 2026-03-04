@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Paper, Stack, Typography } from '@mui/material';
+import { Alert, Chip, Grid2 as Grid, Stack, Typography } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
 import { fetchDashboardState } from '../lib/dashboardStateApi';
-
-type DashboardState = Record<string, unknown>;
+import { buildDashboardSections, type DashboardState } from '../lib/dashboardSections';
+import { DashboardSectionCard } from '../components/DashboardSectionCard';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -38,23 +38,12 @@ export default function Dashboard() {
     };
   }, [user]);
 
-  const summary = useMemo(() => {
+  const sections = useMemo(() => {
     if (!state) {
-      return null;
+      return [];
     }
 
-    const arrayCounts = Object.entries(state).reduce<Record<string, number>>((result, [key, value]) => {
-      if (Array.isArray(value)) {
-        result[key] = value.length;
-      }
-      return result;
-    }, {});
-
-    return {
-      stateVersion: state.stateVersion ?? state.dashboardStateVersion ?? '—',
-      nextActionNumber: state.nextActionNumber ?? '—',
-      arrayCounts,
-    };
+    return buildDashboardSections(state);
   }, [state]);
 
   if (!user) {
@@ -63,23 +52,38 @@ export default function Dashboard() {
 
   return (
     <Stack spacing={2}>
-      <Typography variant="h5">Dashboard Summary</Typography>
+      <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+        <Typography variant="h5">Dashboard</Typography>
+        <Chip size="small" label="Read-only" color="default" variant="outlined" />
+      </Stack>
       {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
-      <Paper sx={{ p: 2 }}>
-        <Typography variant="body2" color="text.secondary">
-          Last updated: {updatedAt ? new Date(updatedAt).toLocaleString() : '—'}
-        </Typography>
-        <Typography variant="body1">stateVersion: {summary?.stateVersion ?? '—'}</Typography>
-        <Typography variant="body1">nextActionNumber: {summary?.nextActionNumber ?? '—'}</Typography>
-        {Object.entries(summary?.arrayCounts ?? {}).map(([key, count]) => (
-          <Typography key={key} variant="body1">
-            {key}: {count}
-          </Typography>
-        ))}
-      </Paper>
       <Typography variant="body2" color="text.secondary">
-        Read-only view.
+        Last updated: {updatedAt ? new Date(updatedAt).toLocaleString() : '—'}
       </Typography>
+
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <Stack spacing={2}>
+            {sections.slice(0, 2).map((section) => (
+              <DashboardSectionCard key={section.key} section={section} />
+            ))}
+          </Stack>
+        </Grid>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <Stack spacing={2}>
+            {sections.slice(2, 4).map((section) => (
+              <DashboardSectionCard key={section.key} section={section} />
+            ))}
+          </Stack>
+        </Grid>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <Stack spacing={2}>
+            {sections.slice(4, 6).map((section) => (
+              <DashboardSectionCard key={section.key} section={section} />
+            ))}
+          </Stack>
+        </Grid>
+      </Grid>
     </Stack>
   );
 }
