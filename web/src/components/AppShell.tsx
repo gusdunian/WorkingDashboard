@@ -98,7 +98,7 @@ export default function AppShell({ children }: PropsWithChildren) {
           </IconButton>
 
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Working Dashboard
+            Angus Working Dashboard
           </Typography>
 
           <FormControl size="small" sx={{ minWidth: 180 }}>
