@@ -5,10 +5,6 @@ import { fetchDashboardState } from '../lib/dashboardStateApi';
 
 type DashboardState = Record<string, unknown>;
 
-function getCount(value: unknown) {
-  return Array.isArray(value) ? value.length : 0;
-}
-
 export default function Dashboard() {
   const { user } = useAuth();
   const [state, setState] = useState<DashboardState | null>(null);
@@ -47,14 +43,17 @@ export default function Dashboard() {
       return null;
     }
 
+    const arrayCounts = Object.entries(state).reduce<Record<string, number>>((result, [key, value]) => {
+      if (Array.isArray(value)) {
+        result[key] = value.length;
+      }
+      return result;
+    }, {});
+
     return {
       stateVersion: state.stateVersion ?? state.dashboardStateVersion ?? '—',
       nextActionNumber: state.nextActionNumber ?? '—',
-      generalActions: getCount(state.generalActions),
-      schedulingActions: getCount(state.schedulingActions),
-      bigTicketItems: getCount(state.bigTicketItems ?? state.bigTicket),
-      meetingNotes: getCount(state.meetingNotes),
-      generalNotes: getCount(state.generalNotes),
+      arrayCounts,
     };
   }, [state]);
 
@@ -72,11 +71,11 @@ export default function Dashboard() {
         </Typography>
         <Typography variant="body1">stateVersion: {summary?.stateVersion ?? '—'}</Typography>
         <Typography variant="body1">nextActionNumber: {summary?.nextActionNumber ?? '—'}</Typography>
-        <Typography variant="body1">generalActions: {summary?.generalActions ?? 0}</Typography>
-        <Typography variant="body1">schedulingActions: {summary?.schedulingActions ?? 0}</Typography>
-        <Typography variant="body1">bigTicketItems: {summary?.bigTicketItems ?? 0}</Typography>
-        <Typography variant="body1">meetingNotes: {summary?.meetingNotes ?? 0}</Typography>
-        <Typography variant="body1">generalNotes: {summary?.generalNotes ?? 0}</Typography>
+        {Object.entries(summary?.arrayCounts ?? {}).map(([key, count]) => (
+          <Typography key={key} variant="body1">
+            {key}: {count}
+          </Typography>
+        ))}
       </Paper>
       <Typography variant="body2" color="text.secondary">
         Read-only view.

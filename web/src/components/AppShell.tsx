@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { FormEvent, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   AppBar,
@@ -21,15 +21,25 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSignIn = async () => {
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setPassword('');
     setErrorMessage('');
+  };
+
+  const handleSignIn = async (event: FormEvent) => {
+    event.preventDefault();
+    setErrorMessage('');
+    setIsSubmitting(true);
     try {
       await signInWithPassword(email, password);
-      setDialogOpen(false);
-      setPassword('');
+      handleCloseDialog();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to sign in');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -61,33 +71,39 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
       <Box sx={{ p: 3 }}>{children}</Box>
 
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Sign in</DialogTitle>
-        <DialogContent sx={{ display: 'grid', gap: 2, pt: '8px !important' }}>
-          <TextField
-            label="Email"
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            fullWidth
-          />
-          <TextField
-            label="Password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            fullWidth
-          />
-          {errorMessage ? (
-            <Typography variant="body2" color="error">
-              {errorMessage}
-            </Typography>
-          ) : null}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleSignIn}>Submit</Button>
-        </DialogActions>
+      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="xs" fullWidth>
+        <Box component="form" onSubmit={handleSignIn}>
+          <DialogTitle>Sign in</DialogTitle>
+          <DialogContent sx={{ display: 'grid', gap: 2, pt: '8px !important' }}>
+            <TextField
+              label="Email"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              fullWidth
+              required
+            />
+            <TextField
+              label="Password"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              fullWidth
+              required
+            />
+            {errorMessage ? (
+              <Typography variant="body2" color="error">
+                {errorMessage}
+              </Typography>
+            ) : null}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseDialog}>Cancel</Button>
+            <Button variant="contained" type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Signing in...' : 'Submit'}
+            </Button>
+          </DialogActions>
+        </Box>
       </Dialog>
     </Box>
   );
