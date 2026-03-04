@@ -356,6 +356,9 @@
   let lastTransientStatusShownAt = 0;
   let lastCloudEntrypointErrorKey = '';
   let lastCloudEntrypointErrorAt = 0;
+  let lastToastMessage = '';
+  let lastToastType = '';
+  let lastToastShownAt = 0;
 
   const lists = {
     general: {
@@ -1527,10 +1530,19 @@
     if (cloud.signedInEmailEl) {
       cloud.signedInEmailEl.textContent = email;
     }
-    const label = formatCloudTimestamp(cloud.lastSyncedAt) || 'Never';
-    if (cloud.signedInUser && !cloud.busy && !cloud.syncInFlight) {
-      setStatus(`Synced — Last synced: ${label}`, 'success', { toast: false });
+    if (!cloud.signedInUser) return;
+
+    if (cloud.busy || cloud.syncInFlight) {
+      setStatus('Syncing…', 'loading', { toast: false });
+      return;
     }
+
+    if (localDirtySince && (Date.now() - localDirtySince) > 60 * 1000) {
+      setStatus('Sync problem — changes not saved', 'error', { toast: false });
+      return;
+    }
+
+    setStatus('Synced', 'success', { toast: false });
   }
 
   function markLastSynced(timestamp, cloudUpdatedAt = null) {
@@ -1545,6 +1557,11 @@
 
   function showToast(message, type = 'info') {
     if (!cloud.toastContainer || !message) return;
+    const now = Date.now();
+    if (message === lastToastMessage && type === lastToastType && (now - lastToastShownAt) < 1500) return;
+    lastToastMessage = message;
+    lastToastType = type;
+    lastToastShownAt = now;
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
     toast.textContent = message;
@@ -1558,8 +1575,12 @@
     if (!cloud.statusEl) return;
     const normalizedType = ['info', 'success', 'warning', 'error', 'loading'].includes(type) ? type : 'info';
     const nextMessage = message || 'Ready';
+    const nextClassName = `cloud-status cloud-status-${normalizedType}`;
+    if (cloud.statusEl.textContent === nextMessage && cloud.statusEl.className === nextClassName) {
+      return;
+    }
     cloud.statusEl.textContent = nextMessage;
-    cloud.statusEl.className = `cloud-status cloud-status-${normalizedType}`;
+    cloud.statusEl.className = nextClassName;
     const shouldToast = options.toast !== false;
     const criticalToast = normalizedType === 'error' || normalizedType === 'warning';
     if (normalizedType !== 'loading' && shouldToast && criticalToast) {
