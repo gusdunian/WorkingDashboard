@@ -4,14 +4,13 @@ import { BrowserRouter } from 'react-router-dom'
 import { CssBaseline, ThemeProvider } from '@mui/material'
 import App from './App'
 import { UiSettingsProvider, useUiSettings } from './context/UiSettingsContext'
+import { AuthProvider } from './context/AuthContext'
 import { createAppTheme } from './theme/createAppTheme'
 
 function ThemedApp() {
   const { stylePack } = useUiSettings()
   const theme = useMemo(() => createAppTheme(stylePack), [stylePack])
 
-  // Dev should run at "/" in Codespaces/local.
-  // Prod should respect Vite base (e.g. "/WorkingDashboard/react/") for GitHub Pages.
   const basename = import.meta.env.DEV ? '/' : import.meta.env.BASE_URL
 
   return (
@@ -26,8 +25,10 @@ function ThemedApp() {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <UiSettingsProvider>
-      <ThemedApp />
-    </UiSettingsProvider>
+    <AuthProvider>
+      <UiSettingsProvider>
+        <ThemedApp />
+      </UiSettingsProvider>
+    </AuthProvider>
   </StrictMode>,
 )
