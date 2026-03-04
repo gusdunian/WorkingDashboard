@@ -4337,23 +4337,21 @@
 
     const state = migrateState(getLocalDashboardState());
     const nowIso = new Date().toISOString();
-    const { data, error } = await sb.from('dashboard_state')
-      .upsert({
-        user_id: user.id,
-        state,
-        updated_at: nowIso,
-      })
-      .select('updated_at')
-      .single();
+    // Fetch server-updated timestamp so local conflict checks compare against
+    // the DB trigger's authoritative updated_at value.
+    const { data, error } = await sb.from('dashboard_state').upsert({
+      user_id: user.id,
+      state,
+      updated_at: nowIso,
+    }).select('updated_at').single();
 
     if (error) {
       setStatus(`Sync failed: ${error.message}`, 'error');
       return false;
     }
 
-    localStorage.setItem(CLOUD_LAST_PUSH_KEY, nowIso);
-    // Use DB-returned updated_at so local conflict checks compare against server metadata.
     const serverUpdatedAt = data?.updated_at || nowIso;
+    localStorage.setItem(CLOUD_LAST_PUSH_KEY, nowIso);
     markLastSynced(nowIso, serverUpdatedAt);
     clearLocalDirty();
     if (!options.silentSuccess) {
