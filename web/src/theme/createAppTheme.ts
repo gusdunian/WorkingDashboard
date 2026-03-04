@@ -9,6 +9,8 @@ type PackConfig = {
   buttonSize: 'small' | 'medium' | 'large'
   fieldSize: 'small' | 'medium'
   buttonPadding: string
+  fieldPaddingY: number
+  fieldPaddingX: number
   palette: {
     mode: 'light'
     primary: { main: string }
@@ -35,6 +37,8 @@ const packConfigs: Record<StylePack, PackConfig> = {
     buttonSize: 'large',
     fieldSize: 'medium',
     buttonPadding: '10px 22px',
+    fieldPaddingY: 12,
+    fieldPaddingX: 14,
     palette: {
       mode: 'light',
       primary: { main: '#1a73e8' },
@@ -59,6 +63,8 @@ const packConfigs: Record<StylePack, PackConfig> = {
     buttonSize: 'medium',
     fieldSize: 'small',
     buttonPadding: '8px 20px',
+    fieldPaddingY: 10,
+    fieldPaddingX: 12,
     palette: {
       mode: 'light',
       primary: { main: '#6750a4' },
@@ -83,6 +89,8 @@ const packConfigs: Record<StylePack, PackConfig> = {
     buttonSize: 'small',
     fieldSize: 'small',
     buttonPadding: '6px 14px',
+    fieldPaddingY: 8,
+    fieldPaddingX: 10,
     palette: {
       mode: 'light',
       primary: { main: '#0b5cab' },
@@ -107,6 +115,8 @@ const packConfigs: Record<StylePack, PackConfig> = {
     buttonSize: 'medium',
     fieldSize: 'medium',
     buttonPadding: '7px 16px',
+    fieldPaddingY: 9,
+    fieldPaddingX: 11,
     palette: {
       mode: 'light',
       primary: { main: '#212121' },
@@ -144,6 +154,7 @@ export function createAppTheme(stylePack: StylePack) {
           root: {
             border: config.cardVariant === 'outlined' ? '1px solid' : 'none',
             borderColor: config.cardVariant === 'outlined' ? 'rgba(15, 23, 42, 0.16)' : 'transparent',
+            backgroundImage: 'none',
           },
         },
       },
@@ -176,8 +187,17 @@ export function createAppTheme(stylePack: StylePack) {
             borderRadius: config.borderRadius,
           },
           input: {
-            paddingTop: config.fieldSize === 'small' ? 8 : 12,
-            paddingBottom: config.fieldSize === 'small' ? 8 : 12,
+            paddingTop: config.fieldPaddingY,
+            paddingBottom: config.fieldPaddingY,
+            paddingLeft: config.fieldPaddingX,
+            paddingRight: config.fieldPaddingX,
+          },
+        },
+      },
+      MuiToolbar: {
+        styleOverrides: {
+          regular: {
+            minHeight: config.fieldSize === 'small' ? 58 : 64,
           },
         },
       },
