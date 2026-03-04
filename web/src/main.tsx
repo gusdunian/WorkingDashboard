@@ -10,10 +10,14 @@ function ThemedApp() {
   const { stylePack } = useUiSettings()
   const theme = useMemo(() => createAppTheme(stylePack), [stylePack])
 
+  // Dev should run at "/" in Codespaces/local.
+  // Prod should respect Vite base (e.g. "/WorkingDashboard/react/") for GitHub Pages.
+  const basename = import.meta.env.DEV ? '/' : import.meta.env.BASE_URL
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <BrowserRouter basename={import.meta.env.BASE_URL}>
+      <BrowserRouter basename={basename}>
         <App />
       </BrowserRouter>
     </ThemeProvider>
