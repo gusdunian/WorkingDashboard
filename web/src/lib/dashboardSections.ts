@@ -1,4 +1,5 @@
-export type DashboardState = Record<string, unknown>;
+import type { DashboardState } from './dashboardStateModel';
+
 
 export type DashboardItemSummary = {
   id: string;
