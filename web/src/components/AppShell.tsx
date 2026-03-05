@@ -47,9 +47,17 @@ export default function AppShell({ children }: { children: ReactNode }) {
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
       <AppBar position="static" color="inherit" elevation={1}>
         <Toolbar sx={{ justifyContent: 'space-between' }}>
-          <Button component={RouterLink} to="/dashboard" color="inherit">
-            Working Dashboard
-          </Button>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Button component={RouterLink} to="/" color="inherit">
+              Home
+            </Button>
+            <Button component={RouterLink} to="/dashboard" color="inherit">
+              React Dashboard
+            </Button>
+            <Button component={RouterLink} to="/legacy" color="inherit">
+              Legacy Dashboard
+            </Button>
+          </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             {user ? (
               <>
