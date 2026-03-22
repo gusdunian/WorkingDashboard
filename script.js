@@ -334,6 +334,7 @@
     signOutBtn: document.getElementById('cloud-sign-out-btn'),
     exportBtn: document.getElementById('cloud-export-btn'),
     importBtn: document.getElementById('cloud-import-btn'),
+    dataMigrationExportBtn: document.getElementById('data-migration-export-btn'),
     settingsBtn: document.getElementById('cloud-settings-btn'),
     signedInDisplay: document.getElementById('cloud-signed-in-display'),
     signedInEmailEl: document.getElementById('cloud-signed-in-email'),
@@ -1657,6 +1658,7 @@
     cloud.statusEl.hidden = false;
     cloud.exportBtn.disabled = cloud.busy || !signedIn;
     cloud.importBtn.disabled = cloud.busy || !signedIn || cloud.syncInFlight;
+    cloud.dataMigrationExportBtn.disabled = cloud.busy;
     cloud.signInBtn.disabled = cloud.busy || cloud.syncInFlight || signedIn;
     cloud.signOutBtn.disabled = cloud.busy || !signedIn;
     cloud.settingsBtn.disabled = cloud.busy || !signedIn || cloud.syncInFlight;
@@ -4471,6 +4473,28 @@
     }
   }
 
+  function exportDataMigrationState() {
+    if (cloud.busy) return;
+    const exportedAt = new Date().toISOString();
+    const payload = {
+      schema: 'work_dashboard_migration_v1',
+      sourceApp: 'WorkingDashboard',
+      exportedAt,
+      sourceUserId: cloud.signedInUser?.id || null,
+      state: getLocalDashboardState(),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `working-dashboard-data-migration-export-${exportedAt.slice(0, 19).replace(/[T:]/g, '-')}.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    setStatus('Data migration export downloaded', 'success');
+  }
+
   function extractActionNumber(action) {
     const asNumber = Number(action?.number);
     if (Number.isInteger(asNumber)) return asNumber;
@@ -4642,6 +4666,7 @@
     cloud.signOutBtn.addEventListener('click', signOutCloud);
     cloud.exportBtn.addEventListener('click', exportCloudBackup);
     cloud.importBtn.addEventListener('click', openImportModal);
+    cloud.dataMigrationExportBtn.addEventListener('click', exportDataMigrationState);
 
     const submitSignIn = (event) => {
       if (event.key === 'Enter') {
