@@ -327,6 +327,8 @@
     nextActionNumber: DEFAULT_NEXT_NUMBER,
   };
 
+  const DATA_MIGRATION_EXPORT_BUTTON_ID = 'data-migration-export-btn';
+
   const cloud = {
     emailInput: document.getElementById('cloud-email-input'),
     passwordInput: document.getElementById('cloud-password-input'),
@@ -334,13 +336,14 @@
     signOutBtn: document.getElementById('cloud-sign-out-btn'),
     exportBtn: document.getElementById('cloud-export-btn'),
     importBtn: document.getElementById('cloud-import-btn'),
-    dataMigrationExportBtn: document.getElementById('data-migration-export-btn'),
+    dataMigrationExportBtn: document.getElementById(DATA_MIGRATION_EXPORT_BUTTON_ID),
     settingsBtn: document.getElementById('cloud-settings-btn'),
     signedInDisplay: document.getElementById('cloud-signed-in-display'),
     signedInEmailEl: document.getElementById('cloud-signed-in-email'),
     collapseAllBtn: document.getElementById('collapse-all-btn'),
     statusEl: document.getElementById('cloud-status'),
     toastContainer: document.getElementById('toast-container'),
+    dataMigrationDownloadAnchor: null,
     signedInUser: null,
     busy: false,
     loadingContext: '',
@@ -4473,8 +4476,7 @@
     }
   }
 
-  function exportDataMigrationState() {
-    if (cloud.busy) return;
+  function buildDataMigrationExportPayload() {
     const exportedAt = new Date().toISOString();
     const payload = {
       schema: 'work_dashboard_migration_v1',
@@ -4483,16 +4485,53 @@
       sourceUserId: cloud.signedInUser?.id || null,
       state: getLocalDashboardState(),
     };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    console.info('[DataMigrationExport] payload built', {
+      exportedAt: payload.exportedAt,
+      sourceUserId: payload.sourceUserId,
+    });
+    return payload;
+  }
+
+  function formatDataMigrationExportFilename(exportedAt) {
+    return `working-dashboard-migration-${exportedAt.slice(0, 19).replace(/[:T]/g, '-').replace(/\.\d+Z$/, '')}.json`;
+  }
+
+  function getDataMigrationDownloadAnchor() {
+    if (!cloud.dataMigrationDownloadAnchor || !cloud.dataMigrationDownloadAnchor.isConnected) {
+      const anchor = document.createElement('a');
+      anchor.hidden = true;
+      anchor.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(anchor);
+      cloud.dataMigrationDownloadAnchor = anchor;
+    }
+    return cloud.dataMigrationDownloadAnchor;
+  }
+
+  function triggerDataMigrationDownload(payload) {
+    const serializedPayload = JSON.stringify(payload, null, 2);
+    const blob = new Blob([serializedPayload], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
+    const anchor = getDataMigrationDownloadAnchor();
     anchor.href = url;
-    anchor.download = `working-dashboard-data-migration-export-${exportedAt.slice(0, 19).replace(/[T:]/g, '-')}.json`;
-    document.body.appendChild(anchor);
+    anchor.download = formatDataMigrationExportFilename(payload.exportedAt);
     anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(url);
-    setStatus('Data migration export downloaded', 'success');
+    console.info('[DataMigrationExport] download triggered', { download: anchor.download });
+    window.setTimeout(() => {
+      URL.revokeObjectURL(url);
+    }, 0);
+  }
+
+  function exportDataMigrationState() {
+    if (cloud.busy) return;
+    try {
+      const payload = buildDataMigrationExportPayload();
+      triggerDataMigrationDownload(payload);
+      setStatus('Data migration export downloaded', 'success');
+    } catch (error) {
+      console.error('[DataMigrationExport] Export failed', error);
+      setStatus('Data migration export failed', 'error');
+      showToast('Data migration export failed. Check the console for details.', 'warning');
+    }
   }
 
   function extractActionNumber(action) {
@@ -4666,7 +4705,24 @@
     cloud.signOutBtn.addEventListener('click', signOutCloud);
     cloud.exportBtn.addEventListener('click', exportCloudBackup);
     cloud.importBtn.addEventListener('click', openImportModal);
-    cloud.dataMigrationExportBtn.addEventListener('click', exportDataMigrationState);
+
+    const dataMigrationExportBtn = document.getElementById(DATA_MIGRATION_EXPORT_BUTTON_ID);
+    console.info('[DataMigrationExport] button lookup', {
+      id: DATA_MIGRATION_EXPORT_BUTTON_ID,
+      found: Boolean(dataMigrationExportBtn),
+    });
+    if (dataMigrationExportBtn) {
+      cloud.dataMigrationExportBtn = dataMigrationExportBtn;
+      if (dataMigrationExportBtn.dataset.exportBound !== 'true') {
+        dataMigrationExportBtn.addEventListener('click', exportDataMigrationState);
+        dataMigrationExportBtn.dataset.exportBound = 'true';
+      }
+      console.info('[DataMigrationExport] click handler attached', {
+        id: DATA_MIGRATION_EXPORT_BUTTON_ID,
+      });
+    } else {
+      console.error(`[DataMigrationExport] Button #${DATA_MIGRATION_EXPORT_BUTTON_ID} was not found; export is unavailable.`);
+    }
 
     const submitSignIn = (event) => {
       if (event.key === 'Enter') {
