@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { CssBaseline, ThemeProvider } from '@mui/material'
 import App from './App'
+import { DashboardStateProvider } from './context/DashboardStateContext'
 import { UiSettingsProvider, useUiSettings } from './context/UiSettingsContext'
 import { createAppTheme } from './theme/createAppTheme'
 
@@ -23,7 +24,9 @@ function ThemedApp() {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <UiSettingsProvider>
-      <ThemedApp />
+      <DashboardStateProvider>
+        <ThemedApp />
+      </DashboardStateProvider>
     </UiSettingsProvider>
   </StrictMode>,
 )
